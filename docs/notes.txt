@@ -1,0 +1,26 @@
+Need to add later
+
+learning
+-winston logger
+-Integrate a payment system (Stripe or PayPal)
+-Implement caching with Redis
+-Deploy on AWS (EC2, RDS, S3 for product images).
+-Write unit & integration tests using Jest or Mocha.
+-Document the API using Swagger.
+-File Storage: AWS S3 (for product images)
+-Database: AWS RDS (PostgreSQL)
+-Backend: EC2 instance
+-Static Assets: AWS S3
+-Domain & SSL: AWS Route 53 + CloudFront
+
+design patterns
+-Singleton	Creational	Ensuring a single instance of the database connection (Prisma, PostgreSQL).
+-Factory Method	Creational	Creating different types of payment gateways (Stripe, PayPal).
+-Repository Pattern	Structural	Managing database queries for users, products, orders, and payments.
+-Decorator	Structural	Adding extra features to existing services (e.g., caching on product retrieval).
+-Observer	Behavioral	Sending email notifications when an order status changes.
+-Strategy	Behavioral	Switching between different discount strategies (percentage-based, fixed amount).
+-Proxy	Structural	Implementing API rate limiting (Redis) to protect endpoints.
+-Adapter	Structural	Integrating external services like Google Login or payment providers.
+-Command	Behavioral	Handling order-related operations (placing, canceling, or updating orders).
+-Chain of Responsibility	Behavioral	Middleware for request validation, authentication, and logging.
