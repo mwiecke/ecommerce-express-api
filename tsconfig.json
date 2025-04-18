@@ -17,11 +17,13 @@
     "noImplicitAny": true,
     "noFallthroughCasesInSwitch": true,
     "allowImportingTsExtensions": true,
-    "typeRoots": ["./node_modules/@types", "./src/types"]
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "baseUrl": "src"
   },
   "ts-node": {
-    "esm": true
+    "esm": true,
+    "transpileOnly": true
   },
-  "include": ["src", "types"],
-  "exclude": ["node_modules"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

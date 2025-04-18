@@ -1,9 +1,10 @@
-import { User } from '../src/schemas/index'; // Adjust the path to where `User` is defined
+import * as Express from 'express';
+import { User } from '../../schemas/index.ts';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: User;
+      user?: User; // Use the Zod User type
     }
   }
 }

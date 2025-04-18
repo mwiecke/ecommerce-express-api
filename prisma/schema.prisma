@@ -13,14 +13,16 @@ model User {
   firstName   String   @map("first_name")
   lastName    String   @map("last_name")
   email       String   @unique
-  password    String?
+  password    String? // Nullable for Google login
   googleId    String?  @unique @map("google_id")
   role        Role     @default(USER)
   isVerified  Boolean  @default(false)
   verifyToken String?
   createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt
   orders      Order[]
   reviews     Review[]
+  cart        Cart?    @relation("UserCart")
 
   @@index([email])
   @@map("users")
@@ -34,9 +36,11 @@ model Product {
   stock       Int         @default(0)
   imageUrl    String      @map("image_url") @db.VarChar(2048)
   createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt
   isDeleted   Boolean     @default(false)
   orderItems  OrderItem[]
   reviews     Review[]
+  CartItem    CartItem[]
 
   @@index([name])
   @@map("products")
@@ -47,6 +51,7 @@ model Review {
   rating    Float
   comment   String
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt
   userId    String   @map("user_id")
   productId String   @map("product_id")
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -58,33 +63,64 @@ model Review {
   @@map("reviews")
 }
 
+model Cart {
+  id        String     @id @default(uuid())
+  user      User       @relation("UserCart", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String     @unique
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cart      Cart     @relation(fields: [cartId], references: [id])
+  cartId    String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@index([productId])
+}
+
 model Order {
-  id         String      @id @default(uuid())
-  totalPrice Decimal     @map("total_price") @db.Decimal(10, 2)
-  status     OrderStatus @default(PENDING)
-  createdAt  DateTime    @default(now()) @map("created_at")
-  userId     String      @map("user_id")
-  orderItems OrderItem[]
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payment    Payment?
+  id              String      @id @default(uuid())
+  user            User        @relation(fields: [userId], references: [id])
+  userId          String
+  totalPrice      Decimal     @db.Decimal(10, 2)
+  status          OrderStatus @default(PENDING)
+  paymentMethod   String?
+  shippingAddress Json?
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  payment         Payment? // One-to-one
 
   @@index([userId])
-  @@index([createdAt])
-  @@map("orders")
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  quantity  Int
-  price     Decimal @db.Decimal(10, 2)
-  productId String  @map("product_id")
-  orderId   String  @map("order_id")
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid())
+  order        Order    @relation(fields: [orderId], references: [id])
+  orderId      String
+  product      Product  @relation(fields: [productId], references: [id])
+  productId    String
+  productName  String
+  productPrice Decimal  @db.Decimal(10, 2)
+  productImage String?
+  quantity     Int
+  price        Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  @@index([productId])
   @@index([orderId])
-  @@map("order_items")
+  @@index([productId])
 }
 
 model Payment {
@@ -99,17 +135,15 @@ model Payment {
   @@map("payments")
 }
 
-enum Role {
-  USER
-  ADMIN
-}
-
 enum OrderStatus {
   PENDING
   PAID
   SHIPPED
-  DELIVERED
-  CANCELLED
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 enum PaymentMethod {

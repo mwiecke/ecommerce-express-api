@@ -8,10 +8,10 @@ import {
   addReview,
   update,
   deleteReviews,
-  getreviews,
-} from '../controllers/reviewsContrller.ts';
+  getReviews,
+} from '../controllers/reviewsController.ts';
 
-reviewRouter.get('/', getreviews);
+reviewRouter.get('/', getReviews);
 reviewRouter.delete('/:productId', authMiddleware, deleteReviews);
 reviewRouter.post('/', addReview);
 reviewRouter.post('/:productId', update);

@@ -47,12 +47,6 @@ const productsSchema = z.object({
   imageUrl: z.string().url('Invalid image URL'), // Ensure it's a valid URL
 });
 
-const orderSchema = z.object({
-  totalPrice: z.number().min(0, 'Total price must be positive'),
-  status: z.enum(['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED']),
-  userId: z.string().uuid('Invalid user ID'),
-});
-
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -65,17 +59,23 @@ const reviewsSchema = z.object({
   comment: z.string().default(''),
 });
 
+const cartSchema = z.object({
+  productId: z.string().uuid(),
+  price: z.number().positive('Price must be positive').default(0.0),
+  quantity: z.number().positive('quantity must be positive').default(1),
+});
+
 export type User = z.infer<typeof userSchema>;
 export type Product = z.infer<typeof productsSchema>;
-export type Order = z.infer<typeof orderSchema>;
 export type Login = z.infer<typeof loginSchema>;
 export type reviews = z.infer<typeof reviewsSchema>;
+export type Cart = z.infer<typeof cartSchema>;
 
 export {
   passwordSchema,
   userSchema,
   productsSchema,
-  orderSchema,
   loginSchema,
   reviewsSchema,
+  cartSchema,
 };

@@ -4,7 +4,7 @@ import redis from './redisService.ts';
 
 const prisma = new PrismaClient();
 
-export class ProductsService {
+class ProductsService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async createproduct(data: unknown, imageUrl: string) {

@@ -4,13 +4,15 @@ import reviewsService from '../database/reviewsService.ts';
 
 const addReview = async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!req.user || !req.user.id) {
+    if (!req.user) {
       res.status(401).json({ msg: 'Unauthorized' });
       return;
     }
 
+    const userId = (req.user as { id: string }).id;
+
     const data: reviews = {
-      userId: req.user.id,
+      userId: userId,
       productId: req.body.productId,
       rating: req.body.rating,
       comment: req.body.comment,
@@ -27,13 +29,15 @@ const update = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user;
 
-    if (!user || !user.id) {
+    if (!user) {
       res.status(401).json({ msg: 'Unauthorized' });
       return;
     }
 
+    const userId = (req.user as { id: string }).id;
+
     const data: reviews = {
-      userId: user.id,
+      userId: userId,
       productId: req.body.productId,
       rating: req.body.rating,
       comment: req.body.comment,
@@ -52,11 +56,14 @@ const deleteReviews = async (req: Request, res: Response): Promise<void> => {
 
     const user = req.user;
 
-    if (!user || !user.id) {
+    if (!user) {
       res.status(401).json({ msg: 'Unauthorized' });
       return;
     }
-    data.userId = user.id;
+
+    const userId = (req.user as { id: string }).id;
+
+    data.userId = userId;
 
     if (!req.params.productId) {
       res.status(400).json({ msg: 'Missing product ID' });

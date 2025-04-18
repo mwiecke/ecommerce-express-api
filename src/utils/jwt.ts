@@ -1,8 +1,10 @@
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { Response } from 'express';
 import { User } from '../schemas/index.ts';
 
-const generateTokens = (user: User) => {
+type JwtUser = Pick<User, 'id'>;
+
+const generateTokens = (user: JwtUser) => {
   if (!process.env.ACCESS_TOKEN_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
     throw new Error('Missing JWT secret keys in environment variables');
   }
@@ -41,24 +43,21 @@ export const forgot = (code: string, email?: string) => {
   return jwt.sign({ code, email }, secret, { expiresIn: '1h' });
 };
 
-export const verifyJWT = (
-  token: string
-): { code: string; email: string } | null => {
+type ForgotPayload = { code: string; email?: string };
+
+export const verifyJWT = (token: string): ForgotPayload | null => {
   if (!token) {
     console.warn('No token provided');
     return null;
   }
 
-  if (!process.env.FORGOT_TOKEN_SECRET) {
+  const secret = process.env.FORGOT_TOKEN_SECRET;
+  if (!secret) {
     throw new Error('FORGOT_TOKEN_SECRET is not configured');
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.FORGOT_TOKEN_SECRET) as {
-      code: string;
-      email: string;
-    };
-    return decoded;
+    return jwt.verify(token, secret) as ForgotPayload;
   } catch (error) {
     console.error('JWT verification failed:', error);
     return null;

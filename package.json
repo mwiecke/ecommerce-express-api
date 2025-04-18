@@ -25,6 +25,7 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "redis": "^4.7.0",
+    "stripe": "^18.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -40,6 +41,6 @@
     "nodemon": "^3.1.9",
     "prisma": "^6.5.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.3"
   }
 }
