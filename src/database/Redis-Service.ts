@@ -1,4 +1,5 @@
-import redisClient from '../utils/getRedisClient.ts';
+import { NotFoundError } from '../Errors/Custom-errors.ts';
+import redisClient from '../Utils/Get-Redis-Client.ts';
 
 const DEFAULT_EXPIRE_TIME = 60 * 60 * 24 * 7; // 1 week in seconds
 
@@ -13,7 +14,7 @@ class Redis {
     const freshData = await callback();
 
     if (!freshData) {
-      throw new Error('Data not found');
+      throw new NotFoundError(`Data not found for key: ${key}`);
     }
 
     await redisClient
@@ -37,7 +38,7 @@ class Redis {
     const freshData = await callback();
 
     if (!freshData) {
-      throw new Error('Failed to fetch page data');
+      throw new NotFoundError(`Page ${page} data not found`);
     }
 
     await redisClient

@@ -1,19 +1,25 @@
 import express from 'express';
 const reviewRouter = express.Router();
 
-import { isAdmin } from '../middleware/adminMiddleware.ts';
-import { authMiddleware } from '../middleware/authMiddleware.ts';
+import { authMiddleware } from '../Middleware/Auth-Middleware.ts';
+import { checkPermission } from '../Middleware/Check-Review-Permission.ts';
 
 import {
   addReview,
   update,
   deleteReviews,
   getReviews,
-} from '../controllers/reviewsController.ts';
+} from '../Controllers/Reviews-Controller.ts';
 
-reviewRouter.get('/', getReviews);
-reviewRouter.delete('/:productId', authMiddleware, deleteReviews);
-reviewRouter.post('/', addReview);
-reviewRouter.post('/:productId', update);
+reviewRouter.get('/', checkPermission('Review', 'view'), getReviews);
+reviewRouter.delete(
+  '/:productId',
+  authMiddleware,
+  checkPermission('Review', 'delete'),
+  deleteReviews
+);
+
+reviewRouter.post('/', checkPermission('Review', 'create'), addReview);
+reviewRouter.post('/:productId', checkPermission('Review', 'update'), update);
 
 export { reviewRouter };

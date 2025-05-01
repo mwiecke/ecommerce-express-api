@@ -1,24 +1,72 @@
 import express from 'express';
 const productRouter = express.Router();
 
-import { isAdmin } from '../middleware/adminMiddleware.ts';
-import { authMiddleware } from '../middleware/authMiddleware.ts';
+import { authMiddleware } from '../Middleware/Auth-Middleware.ts';
+import { checkPermission } from '../Middleware/Check-Review-Permission.ts';
 
 import {
   addNewProducts,
   deleteProduct,
   UpdateProduct,
-  searchInProducts,
-  makeHidn,
   GetPage,
-} from '../controllers/ProductsController.ts';
+  searchInProducts,
+  hideProduct,
+  restoreProduct,
+  getHiden,
+  getCategories,
+  getTags,
+} from '../Controllers/Product-Controller.ts';
 
-productRouter.get('/:page', authMiddleware, GetPage);
-productRouter.post('/search', authMiddleware, searchInProducts);
+productRouter.get('/:page', GetPage);
+productRouter.post('/search', searchInProducts);
 
-productRouter.post('/', isAdmin, addNewProducts);
-productRouter.put('/:id', isAdmin, UpdateProduct);
-productRouter.delete('/:id', isAdmin, deleteProduct);
-productRouter.patch('/:id/hide', isAdmin, makeHidn);
+productRouter.post(
+  '/',
+  authMiddleware,
+  checkPermission('Product', 'create'),
+  addNewProducts
+);
+
+productRouter.put(
+  '/:id',
+  authMiddleware,
+  checkPermission('Product', 'update'),
+  UpdateProduct
+);
+
+productRouter.delete(
+  '/:id',
+  authMiddleware,
+  checkPermission('Product', 'delete'),
+  deleteProduct
+);
+
+productRouter.patch(
+  '/:id',
+  authMiddleware,
+  checkPermission('Product', 'hide'),
+  hideProduct
+);
+
+productRouter.patch(
+  '/restoreProduct',
+  checkPermission('Product', 'update'),
+  restoreProduct
+);
+
+productRouter.get(
+  '/getHiden',
+  authMiddleware,
+  checkPermission('Product', 'hide'),
+  getHiden
+);
+
+productRouter.get('/getTags', checkPermission('Product', 'view'), getTags);
+
+productRouter.get(
+  '/getCategories',
+  checkPermission('Product', 'view'),
+  getCategories
+);
 
 export { productRouter };

@@ -1,19 +1,23 @@
 import * as express from 'express';
 const paymentRouter = express.Router();
 
-import { authMiddleware } from '../middleware/authMiddleware.ts';
+import { authMiddleware } from '../Middleware/Auth-Middleware.ts';
+import { checkPermission } from '../Middleware/Check-Review-Permission.ts';
+
 import {
   GetPublishableKEY,
   webhook,
   payment,
-} from '../controllers/paymentsController.ts';
+} from '../Controllers/Payments-Controller.ts';
 
 paymentRouter.get('/', authMiddleware, GetPublishableKEY);
+
 paymentRouter.post(
   '/webhook',
   express.raw({ type: 'application/json' }),
   webhook
 );
-paymentRouter.post('/', payment);
+
+paymentRouter.post('/', checkPermission('Payment', 'view'), payment);
 
 export { paymentRouter };

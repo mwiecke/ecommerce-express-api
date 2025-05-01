@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { reviews } from '../schemas/index.ts';
-import reviewsService from '../database/reviewsService.ts';
+import { reviews } from '../Schemas/index.ts';
+import reviewsService from '../Database/Review-Service.ts';
 
 const addReview = async (req: Request, res: Response): Promise<void> => {
   try {

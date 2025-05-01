@@ -1,8 +1,15 @@
 import { Request, Response } from 'express';
-import { attachCookiesToResponse, forgot, verifyJWT } from '../../utils/jwt.ts';
-import userService from '../../database/UserService.ts';
-import { User } from '../../schemas/index.ts';
-import { sendMail } from '../../utils/sendEmail.ts';
+import * as jwt from 'jsonwebtoken';
+import userService from '../../Database/User-Service.ts';
+import { sendMail } from '../../Utils/Send-Email.ts';
+import { User } from '../../Schemas/index.ts';
+import { blacklistToken, isBlacklisted } from '../../Utils/Black-List.ts';
+import {
+  attachCookiesToResponse,
+  forgot,
+  verifyJWT,
+  generateCSRFToken,
+} from '../../Utils/jwt.ts';
 
 const register = async (req: Request, res: Response) => {
   try {
@@ -63,9 +70,9 @@ const login = async (req: Request, res: Response) => {
   try {
     const user = await userService.login(req.body);
 
-    attachCookiesToResponse(res, user);
+    const csrfToken = attachCookiesToResponse(res, user);
 
-    res.status(200).json({ username: user.username });
+    res.status(200).json({ username: user.username, csrfToken: csrfToken });
   } catch (error) {
     res.status(404).json(error);
   }
@@ -80,18 +87,44 @@ const loginWithGoogle = async (req: Request, res: Response): Promise<void> => {
 
     const user = req.user as User;
 
-    attachCookiesToResponse(res, user);
+    const csrfToken = attachCookiesToResponse(res, user);
 
-    res.status(200).json({ username: user.username });
+    res.status(200).json({ username: user.username, csrfToken: csrfToken });
   } catch (error) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
 const logout = async (req: Request, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ msg: 'Authentication failed' });
+    return;
+  }
+
+  const user = req.user as User;
+  const refreshToken = req.cookies.refreshToken;
+
+  await userService.deleteRefreshToken(user.id);
+
+  if (refreshToken) {
+    try {
+      const decoded = jwt.decode(refreshToken) as { exp?: number };
+      if (decoded?.exp) {
+        const expiryMs = decoded.exp * 1000 - Date.now();
+        if (expiryMs > 0) {
+          await blacklistToken(refreshToken, expiryMs);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to decode refresh token', err);
+    }
+  }
+
   res.cookie('jwt', 'logout', { httpOnly: true, maxAge: 1 });
   res.cookie('refreshToken', 'logout', { httpOnly: true, maxAge: 1 });
-  res.status(200).json({ msg: 'logout' });
+  res.cookie('XSRF-TOKEN', 'logout', { httpOnly: false, maxAge: 1 });
+
+  res.status(200).json({ message: 'Logout successful' });
 };
 
 const forgotPassword = async (req: Request, res: Response): Promise<void> => {
@@ -180,8 +213,77 @@ const resetPassword = async (req: Request, res: Response): Promise<void> => {
     console.error('Password reset error:', error);
     res.status(500).json({
       message: 'Failed to reset password',
-      // error: error.message
     });
+  }
+};
+
+const refresh = async (req: Request, res: Response): Promise<void> => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) {
+    res.sendStatus(401);
+    return;
+  }
+
+  const blacklisted = await isBlacklisted(refreshToken);
+  if (blacklisted) {
+    res.status(403).json({ msg: 'Token is blacklisted' });
+    return;
+  }
+
+  const storedToken = await userService.findRefreshToken(refreshToken);
+  if (!storedToken) {
+    res.sendStatus(403);
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET!
+    ) as jwt.JwtPayload;
+
+    const user = await userService.findUserById(payload.id);
+    if (!user) {
+      res.sendStatus(404);
+      return;
+    }
+
+    const newAccessToken = jwt.sign(
+      { id: user.id },
+      process.env.ACCESS_TOKEN_SECRET!,
+      {
+        expiresIn: '15m',
+      }
+    );
+
+    res.cookie('jwt', newAccessToken, {
+      httpOnly: true,
+      maxAge: 15 * 60 * 1000,
+      sameSite: 'strict',
+    });
+
+    const newCsrfToken = generateCSRFToken();
+
+    // Set new tokens in cookies
+    res.cookie('jwt', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 15 * 60 * 1000,
+      sameSite: 'strict',
+    });
+
+    res.cookie('XSRF-TOKEN', newCsrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 15 * 60 * 1000,
+      sameSite: 'strict',
+    });
+
+    res
+      .status(200)
+      .json({ msg: 'Access token refreshed', csrfToken: newCsrfToken });
+  } catch (err) {
+    res.sendStatus(403);
   }
 };
 
@@ -193,4 +295,5 @@ export {
   loginWithGoogle,
   resetPassword,
   forgotPassword,
+  refresh,
 };

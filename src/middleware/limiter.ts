@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import redisClient from '../utils/getRedisClient.ts';
+import redisClient from '../Utils/Get-Redis-Client.ts';
+import { AppError, RateLimitError } from '../Errors/Custom-errors.ts';
+import { logger } from '../Utils/logger.ts';
 
 const REQUEST_LIMIT = 20;
 const TIME_WINDOW = 25200; // 7 hours in seconds
@@ -15,7 +17,7 @@ const rateLimiting: RequestHandler = async (
     req.connection.remoteAddress;
 
   if (!ip) {
-    res.status(400).json({ msg: 'Unable to determine client IP.' });
+    next(new AppError('Unable to determine client IP', 400, 'INVALID_REQUEST'));
     return;
   }
 
@@ -29,17 +31,23 @@ const rateLimiting: RequestHandler = async (
     const ttl = requests === 1 ? TIME_WINDOW : await redisClient.ttl(ip);
 
     if (requests > REQUEST_LIMIT) {
-      res
-        .status(429)
-        .set('Retry-After', Math.ceil(ttl / 60).toString())
-        .json({ msg: 'Too many requests. Please try again later.' });
-      return;
+      const retryAfter = Math.ceil(ttl / 60);
+      res.set('Retry-After', retryAfter.toString());
+
+      throw new RateLimitError(
+        `Rate limit exceeded. Try again in ${retryAfter} minutes.`
+      );
     }
 
     next();
   } catch (error) {
-    console.error('Redis error in rate limiter:', error);
-    res.status(500).json({ msg: 'Internal server error.' });
+    if (error instanceof AppError) {
+      next(error);
+      return;
+    }
+
+    logger.error('Rate limiting error:', error);
+    next(new AppError('Rate limiting failed', 500, 'RATE_LIMIT_ERROR'));
   }
 };
 

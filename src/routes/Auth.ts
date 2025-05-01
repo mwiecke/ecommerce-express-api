@@ -11,7 +11,8 @@ import {
   resetPassword,
   forgotPassword,
   logout,
-} from '../controllers/authControllers/AuthControllers.ts';
+  refresh,
+} from '../Controllers/authControllers/Auth-Controllers.ts';
 
 authRouter.get(
   '/google',
@@ -30,5 +31,6 @@ authRouter.get('/verify-email', verifyEmail);
 authRouter.post('/reset-password', resetPassword);
 authRouter.post('/forgot-password', forgotPassword);
 authRouter.post('/logout', logout);
+authRouter.post('/refresh', refresh);
 
 export { authRouter };

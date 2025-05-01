@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import cartService from '../database/CartService.ts';
+import cartService from '../Database/Cart-Service.ts';
 
 const createCartWithItem = (req: Request, res: Response) => {
   try {
@@ -87,6 +87,7 @@ const getItems = (req: Request, res: Response) => {
 
     if (!user) {
       res.status(401).json({ msg: 'Unauthorized' });
+      return;
     }
 
     const userId = (req.user as { id: string }).id;

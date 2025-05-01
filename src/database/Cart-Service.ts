@@ -1,5 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-import { Cart, cartSchema } from '../schemas/index.ts';
+import { Cart, cartSchema } from '../Schemas/index.ts';
+
+import {
+  NotFoundError,
+  ValidationError,
+  ConflictError,
+  ForbiddenError,
+} from '../Errors/Custom-errors.ts';
 
 const prisma = new PrismaClient();
 
@@ -13,11 +20,13 @@ class CartService {
       });
 
       if (!product) {
-        throw new Error('Product not found in the store or has been deleted');
+        throw new NotFoundError('Product not found or has been deleted');
       }
 
       if (product.stock < Quantity) {
-        throw new Error('Quantity is more then Product stock');
+        throw new ConflictError(
+          `Insufficient stock. Available: ${product.stock}, Requested: ${Quantity}`
+        );
       }
 
       return true;
@@ -65,37 +74,24 @@ class CartService {
   }
 
   async addItemToCart(userId: string, itemData: Cart) {
-    try {
-      const validItemData = cartSchema.parse(itemData);
+    const validItemData = cartSchema.parse(itemData);
 
-      const user = await this.prisma.user.findUnique({
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
         where: { id: userId },
         include: { cart: true },
       });
-
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      if (!user.cart) {
-        throw new Error('User does not have a cart');
-      }
+      if (!user?.cart) throw new NotFoundError('User or cart not found');
 
       await this.checkQuantity(validItemData.quantity, validItemData.productId);
 
-      await this.prisma.cartItem.create({
+      return tx.cartItem.create({
         data: {
           ...validItemData,
           cartId: user.cart.id,
         },
       });
-    } catch (error) {
-      throw new Error(
-        `Failed to add item to cart: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+    });
   }
 
   async deleteItemFromCart(productId: string, userId: string) {
@@ -105,7 +101,9 @@ class CartService {
       });
 
       if (!product) {
-        throw new Error('Product not found in the store or has been deleted');
+        throw new NotFoundError(
+          'Product not found in the store or has been deleted'
+        );
       }
 
       const user = await this.prisma.user.findUnique({
@@ -114,11 +112,11 @@ class CartService {
       });
 
       if (!user) {
-        throw new Error('User not found');
+        throw new NotFoundError('User not found');
       }
 
       if (!user.cart) {
-        throw new Error('User does not have a cart');
+        throw new NotFoundError('User does not have a cart');
       }
 
       const cartItem = await this.prisma.cartItem.findUnique({
@@ -131,7 +129,7 @@ class CartService {
       });
 
       if (!cartItem) {
-        throw new Error('Cart item not found');
+        throw new NotFoundError('Cart item not found');
       }
 
       return await this.prisma.cartItem.delete({
@@ -152,44 +150,18 @@ class CartService {
   }
 
   async clearCart(userId: string) {
-    try {
-      const user = await this.prisma.user.findUnique({
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
         where: { id: userId },
         include: { cart: true },
       });
+      if (!user?.cart) throw new NotFoundError('User or cart not found');
 
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      if (!user.cart) {
-        throw new Error('User does not have a cart');
-      }
-
-      const cartItems = await this.prisma.cartItem.findMany({
+      const { count } = await tx.cartItem.deleteMany({
         where: { cartId: user.cart.id },
       });
-
-      if (cartItems.length === 0) {
-        throw new Error('The cart is already empty');
-      }
-
-      const deletedItems = await this.prisma.cartItem.deleteMany({
-        where: {
-          cartId: user.cart.id,
-        },
-      });
-
-      return {
-        message: `Successfully deleted ${deletedItems.count} items from the cart.`,
-      };
-    } catch (error) {
-      throw new Error(
-        `Failed to clear items from cart: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+      return { message: `Deleted ${count} items` };
+    });
   }
 
   async getItems(userId: string) {
@@ -200,11 +172,11 @@ class CartService {
       });
 
       if (!user) {
-        throw new Error('User not found');
+        throw new NotFoundError('User not found');
       }
 
       if (!user.cart) {
-        throw new Error('User does not have a cart');
+        throw new NotFoundError('User does not have a cart');
       }
 
       return await this.prisma.cartItem.findMany({
@@ -226,53 +198,25 @@ class CartService {
     userId: string,
     newQuantity: number
   ) {
-    try {
-      const user = await this.prisma.user.findUnique({
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
         where: { id: userId },
         include: { cart: true },
       });
+      if (!user?.cart) throw new NotFoundError('User or cart not found');
 
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      if (!user.cart) {
-        throw new Error('User does not have a cart');
-      }
-
-      const cartItem = await this.prisma.cartItem.findUnique({
-        where: {
-          cartId_productId: {
-            cartId: user.cart.id,
-            productId: productId,
-          },
-        },
+      const cartItem = await tx.cartItem.findUnique({
+        where: { cartId_productId: { cartId: user.cart.id, productId } },
       });
+      if (!cartItem) throw new NotFoundError('Item not in cart');
 
-      if (!cartItem) {
-        throw new Error('Product not found in cart');
-      }
+      await this.checkQuantity(newQuantity, productId);
 
-      const updatedItem = await this.prisma.cartItem.update({
-        where: {
-          cartId_productId: {
-            cartId: user.cart.id,
-            productId: productId,
-          },
-        },
-        data: {
-          quantity: newQuantity,
-        },
+      return tx.cartItem.update({
+        where: { cartId_productId: { cartId: user.cart.id, productId } },
+        data: { quantity: newQuantity },
       });
-
-      return updatedItem;
-    } catch (error) {
-      throw new Error(
-        `Failed to update cart item: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+    });
   }
 }
 

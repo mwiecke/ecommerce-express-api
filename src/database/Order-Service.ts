@@ -1,4 +1,10 @@
 import { PrismaClient, OrderStatus, PaymentStatus } from '@prisma/client';
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../Errors/Custom-errors.ts';
 
 const prisma = new PrismaClient();
 
@@ -18,7 +24,7 @@ class OrderService {
     });
 
     if (!cart || cart.items.length === 0) {
-      throw new Error('Cart is empty');
+      throw new NotFoundError('Cart is empty');
     }
 
     try {
@@ -42,7 +48,9 @@ class OrderService {
         }
 
         if (stockIssues.length > 0) {
-          throw new Error(`Insufficient stock: ${stockIssues.join('; ')}`);
+          throw new ConflictError(
+            `Insufficient stock: ${stockIssues.join('; ')}`
+          );
         }
 
         const totalPrice = cart.items.reduce((sum, item) => {
@@ -106,11 +114,13 @@ class OrderService {
     });
 
     if (!order) {
-      throw new Error('Order not found or does not belong to this user');
+      throw new NotFoundError(
+        'Order not found or does not belong to this user'
+      );
     }
 
     if (order.status !== 'PENDING') {
-      throw new Error('Only pending orders can be cancelled');
+      throw new ForbiddenError('Only pending orders can be cancelled');
     }
 
     const orderItems = await this.prisma.orderItem.findMany({
@@ -146,7 +156,7 @@ class OrderService {
       });
 
       if (!order) {
-        throw new Error('can`t find order for thiese user');
+        throw new NotFoundError('No orders found for this user');
       }
 
       return order;
@@ -175,15 +185,11 @@ class OrderService {
   }
 
   async updateOrderStatus(orderId: string, status: OrderStatus) {
-    try {
-      const order = await this.prisma.order.findUnique({
-        where: { id: orderId },
-      });
-
+    return await this.prisma.$transaction(async (prisma) => {
+      const order = await prisma.order.findUnique({ where: { id: orderId } });
       if (!order) {
-        throw new Error('Order not found');
+        throw new NotFoundError('Order not found');
       }
-
       const validTransitions: Record<OrderStatus, OrderStatus[]> = {
         PENDING: ['PAID', 'SHIPPED'],
         PAID: ['SHIPPED'],
@@ -191,7 +197,7 @@ class OrderService {
       };
 
       if (!validTransitions[order.status].includes(status)) {
-        throw new Error(
+        throw new ValidationError(
           `Invalid status transition from ${order.status} to ${status}`
         );
       }
@@ -201,9 +207,7 @@ class OrderService {
         data: { status },
         include: { items: true },
       });
-    } catch (error: any) {
-      throw new Error(`Order status update failed: ${error.message}`);
-    }
+    });
   }
 
   async getinf(userId: string) {
@@ -212,25 +216,32 @@ class OrderService {
     });
 
     if (!order) {
-      throw new Error('can`t find order for thiese user');
+      throw new NotFoundError('No orders found for this user');
     }
 
     const { id, totalPrice } = order[0];
     return { id, totalPrice };
   }
 
-  async payment(
-    sessionId: string,
-    orderId: string,
-    paymentStatus: PaymentStatus
-  ) {
-    await this.prisma.payment.create({
-      data: {
-        paymentMethod: 'STRIPE',
-        transactionId: sessionId,
-        status: paymentStatus,
-        orderId: orderId,
-      },
+  async payment(sessionId: string, orderId: string, status: PaymentStatus) {
+    return await this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.create({
+        data: {
+          paymentMethod: 'STRIPE',
+          transactionId: sessionId,
+          status,
+          orderId,
+        },
+      });
+
+      if (status === 'COMPLETED') {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: 'PAID' },
+        });
+      }
+
+      return payment;
     });
   }
 }

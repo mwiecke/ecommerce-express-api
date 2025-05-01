@@ -1,6 +1,8 @@
-Learn and Add
--winston logger
--Write unit & integration tests using Jest or Mocha.
--Document the API using Swagger.
-Lazy loading & pagination for large datasets.
-Role-based access control (RBAC) for admin functionalities.
+
+Code Quality
+    Implement unit and integration tests
+    Add API documentation with Swagger/OpenAPI
+
+DevOps
+    Dockerize the application
+    Add CI/CD pipeline configuration

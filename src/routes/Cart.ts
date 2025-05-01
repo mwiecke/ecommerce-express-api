@@ -1,7 +1,9 @@
 import express from 'express';
 const cartRouter = express.Router();
 
-import { authMiddleware } from '../middleware/authMiddleware.ts';
+import { authMiddleware } from '../Middleware/Auth-Middleware.ts';
+import { checkPermission } from '../Middleware/Check-Review-Permission.ts';
+import { validateCSRF } from '../Middleware/CSRF.validation.ts';
 
 import {
   createCartWithItem,
@@ -10,16 +12,26 @@ import {
   clearCart,
   getItems,
   updateCart,
-} from '../controllers/CartController.ts';
+} from '../Controllers/Cart-Controller.ts';
 
-cartRouter.get('/:id', authMiddleware, getItems);
+cartRouter.get('/:id', checkPermission('Cart', 'view'), getItems);
 
-cartRouter.delete('/:productId', authMiddleware, deleteItemFromCart);
-cartRouter.delete('/', authMiddleware, clearCart);
+cartRouter.delete(
+  '/:productId',
+  checkPermission('Cart', 'delete'),
+  deleteItemFromCart
+);
 
-cartRouter.post('/firstTime', authMiddleware, createCartWithItem);
-cartRouter.post('/', authMiddleware, addItem);
+cartRouter.delete('/', checkPermission('Cart', 'delete'), clearCart);
 
-cartRouter.patch('/', authMiddleware, updateCart);
+cartRouter.post(
+  '/firstTime',
+  checkPermission('Cart', 'create'),
+  createCartWithItem
+);
+
+cartRouter.post('/', checkPermission('Cart', 'create'), addItem);
+
+cartRouter.patch('/', checkPermission('Cart', 'update'), updateCart);
 
 export { cartRouter };

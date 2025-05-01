@@ -1,0 +1,28 @@
+import { Request, Response, NextFunction } from 'express';
+import { rolePermissions, Role, Resource, Action } from '../Config/roles.ts';
+import { User } from '../Schemas/index.ts';
+import { ForbiddenError, UnauthorizedError } from '../Errors/Custom-errors.ts';
+
+export const checkPermission = (resource: Resource, action: Action) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      const userRole = (req.user as User).role as Role;
+
+      if (!userRole) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const permissions = rolePermissions[userRole][resource];
+
+      if (!permissions || !permissions.includes(action)) {
+        throw new ForbiddenError(
+          `You don't have permission to access this resource`
+        );
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};

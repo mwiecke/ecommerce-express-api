@@ -1,7 +1,6 @@
-import { error } from 'console';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
-import orderService from '../database/orderService';
+import orderService from '../Database/Order-Service.ts';
 
 const stripe = new Stripe(process.env.STRIPE_SEECRET_KEY!, {
   apiVersion: '2025-03-31.basil',
