@@ -17,10 +17,16 @@ const register = async (req: Request, res: Response) => {
 
     const jwtToken = forgot(user.verifyToken!, user.email);
 
-    res.cookie('verifyEmail', jwtToken, { httpOnly: true, maxAge: 3600000 });
+    res.cookie('verifyEmail', jwtToken, {
+      httpOnly: true,
+      maxAge: 3600000,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+    });
+
     attachCookiesToResponse(res, user);
 
-    const verificationLink = `http://localhost:5000/auth/verify-email?token={{verification_token}} `;
+    const verificationLink = `http://localhost:5000/auth/verify-email?token=${jwtToken}`;
     await sendMail(
       user.email,
       'Verify Your Email',
@@ -47,32 +53,57 @@ const verifyEmail = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const decoded = verifyJWT(token) as { code: string; email: string };
-    if (!decoded?.code) {
-      res.status(400).json({ message: 'Invalid JWT token' });
-      return;
+    // First try to treat it as a JWT token
+    try {
+      const decoded = verifyJWT(token) as { code: string; email: string };
+      if (decoded?.code) {
+        // JWT verification successful
+        await userService.verifyEmail(decoded.code);
+        res.clearCookie('verifyEmail');
+        res.status(200).json({ message: 'Email verified successfully' });
+        return;
+      }
+    } catch (error) {
+      // JWT verification failed, treat the token as a raw verification token
+      try {
+        // Try to verify using the raw token
+        await userService.verifyEmail(token);
+        res.clearCookie('verifyEmail');
+        res.status(200).json({ message: 'Email verified successfully' });
+        return;
+      } catch (verifyError) {
+        // Both methods failed
+        const errorMessage =
+          verifyError instanceof Error ? verifyError.message : 'Unknown error';
+        res.status(400).json({
+          message: 'Email verification failed',
+          error: errorMessage,
+        });
+        return;
+      }
     }
-
-    await userService.verifyEmail(decoded.code);
-
-    res.clearCookie('verifyEmail');
-    res.status(200).json({ message: 'Email verified successfully' });
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    res
-      .status(400)
-      .json({ message: 'Email verification failed', error: errorMessage });
+    res.status(400).json({
+      message: 'Email verification failed',
+      error: errorMessage,
+    });
   }
 };
 
 const login = async (req: Request, res: Response) => {
   try {
+    if (!req.body.email || !req.body.password) {
+      res.status(400).json({ message: 'Email and password are required' });
+      return;
+    }
+
     const user = await userService.login(req.body);
 
-    const csrfToken = attachCookiesToResponse(res, user);
+    const csrfToken = await attachCookiesToResponse(res, user);
 
-    res.status(200).json({ username: user.username, csrfToken: csrfToken });
+    res.status(200).json({ username: user.username, csrfToken });
   } catch (error) {
     res.status(404).json(error);
   }
@@ -86,10 +117,9 @@ const loginWithGoogle = async (req: Request, res: Response): Promise<void> => {
     }
 
     const user = req.user as User;
-
     const csrfToken = attachCookiesToResponse(res, user);
 
-    res.status(200).json({ username: user.username, csrfToken: csrfToken });
+    res.status(200).json({ username: user.username, csrfToken });
   } catch (error) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
@@ -139,6 +169,12 @@ const forgotPassword = async (req: Request, res: Response): Promise<void> => {
 
     const resetToken = await userService.makeToken(email);
     const jwtToken = forgot(resetToken, user.email);
+    res.cookie('passwordReset', jwtToken, {
+      httpOnly: true,
+      maxAge: 3600000, // 1 hour
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+    });
 
     await sendMail(
       email,
@@ -147,14 +183,15 @@ const forgotPassword = async (req: Request, res: Response): Promise<void> => {
         <h2>Password Reset</h2>
         <p>You requested to reset your password.</p>
         <p>Please return to the app and enter this code:</p>
-        <h3>${jwtToken}</h3>
+        <h3>${resetToken}</h3>
         <p>This code will expire in 1 hour.</p>
         <p>If you didn't request this, please ignore this email.</p>
       `
     );
 
     res.status(200).json({
-      message: 'Password reset email sent',
+      message:
+        'If your email is registered, you will receive a password reset link',
     });
   } catch (error) {
     console.error('Password reset error:', error);
@@ -169,44 +206,55 @@ const forgotPassword = async (req: Request, res: Response): Promise<void> => {
 
 const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { token, newPassword, email } = req.body;
+    const { resetCode, newPassword, email } = req.body;
+    const jwtToken = req.cookies.passwordReset;
 
-    if (!token || !newPassword || !email) {
+    if (!resetCode || !newPassword || !email || !jwtToken) {
       res.status(400).json({ message: 'Missing required fields' });
       return;
     }
 
-    const decoded = verifyJWT(token);
+    const passwordPattern =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordPattern.test(newPassword)) {
+      res.status(400).json({
+        message:
+          'Password must be at least 8 characters and include uppercase, lowercase, number, and special character',
+      });
+      return;
+    }
+
+    const decoded = verifyJWT(jwtToken);
     if (
       !decoded ||
       typeof decoded !== 'object' ||
       !decoded.code ||
       !decoded.email
     ) {
-      res.status(401).json({ message: 'Invalid token format' });
+      res.status(401).json({ message: 'Invalid session' });
       return;
     }
 
     if (decoded.email !== email) {
-      res.status(401).json({ message: 'Token email mismatch' });
+      res.status(401).json({ message: 'Email mismatch' });
       return;
     }
 
+    if (decoded.code !== resetCode) {
+      res.status(401).json({ message: 'Invalid reset code' });
+      return;
+    }
     const user = await userService.findUserByEmail(email);
     if (!user?.verifyToken || user.verifyToken !== decoded.code) {
       res.status(401).json({ message: 'Invalid or expired token' });
       return;
     }
 
-    if (newPassword.length < 8) {
-      res
-        .status(400)
-        .json({ message: 'Password must be at least 8 characters' });
-      return;
-    }
-
-    await userService.updateUserInfo(newPassword, email);
+    await userService.updateUserInfo({ password: newPassword }, email);
     await userService.clearResetToken(email);
+
+    // Clear the password reset cookie
+    res.cookie('passwordReset', 'logout', { httpOnly: true, maxAge: 1 });
 
     res.status(200).json({ message: 'Password successfully reset' });
   } catch (error) {
@@ -248,6 +296,15 @@ const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const oldToken = refreshToken;
+    const decoded = jwt.decode(oldToken) as { exp?: number };
+    if (decoded?.exp) {
+      const expiryMs = decoded.exp * 1000 - Date.now();
+      if (expiryMs > 0) {
+        await blacklistToken(oldToken, expiryMs);
+      }
+    }
+
     const newAccessToken = jwt.sign(
       { id: user.id },
       process.env.ACCESS_TOKEN_SECRET!,
@@ -256,19 +313,34 @@ const refresh = async (req: Request, res: Response): Promise<void> => {
       }
     );
 
-    res.cookie('jwt', newAccessToken, {
-      httpOnly: true,
-      maxAge: 15 * 60 * 1000,
-      sameSite: 'strict',
-    });
+    const newRefreshToken = jwt.sign(
+      { id: user.id },
+      process.env.REFRESH_TOKEN_SECRET!,
+      {
+        expiresIn: '7d',
+      }
+    );
+
+    const token = {
+      token: newRefreshToken,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    };
+    await userService.refreshToken(token);
 
     const newCsrfToken = generateCSRFToken();
 
-    // Set new tokens in cookies
     res.cookie('jwt', newAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 15 * 60 * 1000,
+      sameSite: 'strict',
+    });
+
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       sameSite: 'strict',
     });
 

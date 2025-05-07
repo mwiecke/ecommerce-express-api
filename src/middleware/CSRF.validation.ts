@@ -12,15 +12,10 @@ export const validateCSRF = (
     return next();
   }
 
-  const csrfToken = req.headers['x-xsrf-token'] || req.headers['x-csrf-token'];
+  const csrfToken = req.headers['x-csrf-token'] || req.headers['x-xsrf-token'];
   const cookieToken = req.cookies['XSRF-TOKEN'];
 
-  if (
-    !csrfToken ||
-    !cookieToken ||
-    typeof csrfToken !== 'string' ||
-    typeof cookieToken !== 'string'
-  ) {
+  if (!csrfToken || !cookieToken) {
     next(new ForbiddenError('CSRF token validation failed'));
     return;
   }
@@ -28,10 +23,10 @@ export const validateCSRF = (
   try {
     const isEqual = timingSafeEqual(
       Buffer.from(cookieToken),
-      Buffer.from(csrfToken)
+      Buffer.from(String(csrfToken))
     );
     if (!isEqual) {
-      next(new ForbiddenError('CSRF token validation failed'));
+      throw new Error('Token mismatch');
     }
     next();
   } catch {

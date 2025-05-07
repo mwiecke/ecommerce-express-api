@@ -10,10 +10,10 @@ export const generateCSRFToken = () => {
   return crypto.randomBytes(32).toString('hex');
 };
 
-export const attachCookiesToResponse = (res: Response, user: User) => {
+export const attachCookiesToResponse = async (res: Response, user: User) => {
   if (!process.env.ACCESS_TOKEN_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
     logger.error(
-      'JWT verification failed: FORGOT_TOKEN_SECRET is not configured'
+      'JWT verification failed: ACCESS_TOKEN_SECRET or REFRESH_TOKEN_SECRET is not configured'
     );
     throw new AppError(
       'Server configuration error',
@@ -34,19 +34,21 @@ export const attachCookiesToResponse = (res: Response, user: User) => {
     { expiresIn: '7d' }
   );
 
+  const csrfToken = generateCSRFToken();
+
   res.cookie('jwt', accessToken, {
     httpOnly: true,
     maxAge: 15 * 60 * 1000,
     sameSite: 'strict',
-  }); // 15 minutes
+    secure: process.env.NODE_ENV === 'production',
+  });
 
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     sameSite: 'strict',
-  }); // 7 days
-
-  const csrfToken = generateCSRFToken();
+    secure: process.env.NODE_ENV === 'production',
+  });
 
   res.cookie('XSRF-TOKEN', csrfToken, {
     httpOnly: false,
@@ -61,14 +63,26 @@ export const attachCookiesToResponse = (res: Response, user: User) => {
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   };
 
-  userService.refreshToken(token);
+  await userService.refreshToken(token).catch((err) => {
+    logger.error('Failed to store refresh token', err);
+  });
 
   return csrfToken;
 };
 
 export const forgot = (code: string, email?: string) => {
-  const secret = process.env.FORGOT_TOKEN_SECRET || 'your-secret';
-  return jwt.sign({ code, email }, secret, { expiresIn: '1h' });
+  if (!process.env.FORGOT_TOKEN_SECRET) {
+    logger.error('FORGOT_TOKEN_SECRET is not configured');
+    throw new AppError(
+      'Server configuration error',
+      500,
+      'SERVER_CONFIG_ERROR'
+    );
+  }
+
+  return jwt.sign({ code, email }, process.env.FORGOT_TOKEN_SECRET, {
+    expiresIn: '1h',
+  });
 };
 
 type ForgotPayload = { code: string; email?: string };

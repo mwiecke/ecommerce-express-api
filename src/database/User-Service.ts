@@ -1,13 +1,13 @@
-import { PrismaClient, User } from '@prisma/client';
+import { PrismaClient, Role, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { logger } from '../Utils/logger.ts';
 
 import {
-  userSchema,
   Login,
   loginSchema,
   RefreshToken,
+  inputuser,
 } from '../Schemas/index.ts';
 
 import {
@@ -22,7 +22,7 @@ class UserService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async createUser(data: unknown) {
-    const validData = userSchema.parse(data);
+    const validData = inputuser.parse(data);
 
     return await this.prisma.$transaction(async (prisma) => {
       if (validData.password) {
@@ -38,7 +38,7 @@ class UserService {
         googleId: validData.googleId || undefined,
         verifyToken: crypto.randomBytes(32).toString('hex'),
         isVerified: false,
-        role: adminCount === 0 ? 'ADMIN' : validData.role || 'USER',
+        role: adminCount === 0 ? Role.ADMIN : Role.USER,
       };
 
       return prisma.user.create({
@@ -172,19 +172,17 @@ class UserService {
   }
 
   async refreshToken(token: RefreshToken) {
-    return await this.prisma.$transaction(async (prisma) => {
-      return prisma.refreshToken.upsert({
-        where: { userId: token.userId },
-        update: {
-          token: token.token,
-          expiresAt: token.expiresAt,
-        },
-        create: {
-          token: token.token,
-          userId: token.userId,
-          expiresAt: token.expiresAt,
-        },
-      });
+    return this.prisma.refreshToken.upsert({
+      where: { userId: token.userId },
+      update: {
+        token: token.token,
+        expiresAt: token.expiresAt,
+      },
+      create: {
+        token: token.token,
+        userId: token.userId,
+        expiresAt: token.expiresAt,
+      },
     });
   }
 

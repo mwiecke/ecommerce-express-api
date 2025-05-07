@@ -40,6 +40,15 @@ const userSchema = z
     }
   );
 
+const inputuser = z.object({
+  username: z.string().trim().min(3, 'Username must be at least 3 characters'),
+  firstName: z.string().trim(),
+  lastName: z.string().trim(),
+  email: z.string().email(),
+  password: passwordSchema.optional().nullable(),
+  googleId: z.string().optional().nullable(),
+});
+
 const productsSchema = z.object({
   name: z.string().trim().min(3).max(50),
   description: z.string().optional().default(''), // Allow empty description
@@ -103,4 +112,5 @@ export {
   RefreshTokenSchema,
   productFilterSchema,
   productSortingSchema,
+  inputuser,
 };

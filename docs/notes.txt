@@ -1,4 +1,6 @@
 
+import compression from 'compression'; // Add this package for response compression
+
 Code Quality
     Implement unit and integration tests
     Add API documentation with Swagger/OpenAPI
