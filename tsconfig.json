@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
@@ -10,18 +10,17 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
-    "outDir": "dist",
+    "noEmit": false,
+    "outDir": "./dist",
     "rootDir": "./src",
     "sourceMap": true,
     "noImplicitAny": true,
-    "noFallthroughCasesInSwitch": true,
-    "allowImportingTsExtensions": true,
     "typeRoots": ["./node_modules/@types", "./src/types"],
-    "baseUrl": "src"
+    "baseUrl": "./src",
   },
   "ts-node": {
     "esm": true,
+    "experimentalSpecifierResolution": "node",
     "transpileOnly": true
   },
   "include": ["src/**/*"],

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { reviews } from '../Schemas/index.ts';
-import reviewsService from '../Database/Review-Service.ts';
+import { reviews } from '../Schemas/index.js';
+import reviewsService from '../Database/Review-Service.js';
 
 const addReview = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -19,7 +19,7 @@ const addReview = async (req: Request, res: Response): Promise<void> => {
     };
 
     const review = await reviewsService.addReview(data);
-    res.status(200).json({ data: review });
+    res.status(201).json({ data: review });
   } catch (error) {
     res.status(500).json({ msg: 'Server error', error });
   }
@@ -35,15 +35,27 @@ const update = async (req: Request, res: Response): Promise<void> => {
     }
 
     const userId = (req.user as { id: string }).id;
+    const productId = req.params.productId;
 
-    const data: reviews = {
-      userId: userId,
-      productId: req.body.productId,
-      rating: req.body.rating,
-      comment: req.body.comment,
+    const updateFields: Partial<Pick<reviews, 'rating' | 'comment'>> = {};
+    if (req.body.rating !== undefined) updateFields.rating = req.body.rating;
+    if (req.body.comment !== undefined) updateFields.comment = req.body.comment;
+
+    if (Object.keys(updateFields).length === 0) {
+      res
+        .status(400)
+        .json({ msg: 'Nothing to update. Provide rating or comment.' });
+      return;
+    }
+
+    const data = {
+      userId,
+      productId,
+      ...updateFields,
     };
 
     const review = await reviewsService.updateReview(data);
+
     res.status(200).json({ data: review });
   } catch (error) {
     res.status(500).json({ msg: 'Server error', error });
@@ -69,6 +81,7 @@ const deleteReviews = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ msg: 'Missing product ID' });
       return;
     }
+
     data.productId = req.params.productId;
 
     await reviewsService.deleteReviews(data);

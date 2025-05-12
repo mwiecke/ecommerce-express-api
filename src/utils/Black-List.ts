@@ -1,4 +1,4 @@
-import redis from './Get-Redis-Client.ts';
+import redis from './Get-Redis-Client.js';
 
 export const blacklistToken = async (token: string, expiryMs: number) => {
   await redis.set(token, 'blacklisted', { PX: expiryMs });

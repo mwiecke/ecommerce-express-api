@@ -1,11 +1,11 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { productsSchema, Product } from '../Schemas/index.ts';
-import redis from './Redis-Service.ts';
+import { productSchema, Product } from '../Schemas/index.js';
+import redis from './Redis-Service.js';
 import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
-} from '../Errors/Custom-errors.ts';
+} from '../Errors/Custom-errors.js';
 
 const prisma = new PrismaClient();
 
@@ -27,7 +27,7 @@ class ProductsService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async createProduct(data: unknown, imageUrl: string) {
-    const validData = productsSchema.parse({
+    const validData = productSchema.parse({
       ...(data as object),
       imageUrl,
     });
@@ -47,6 +47,7 @@ class ProductsService {
       return prisma.product.create({
         data: {
           ...validData,
+          imageUrl: validData.imageUrl || '',
           isDeleted: false,
         },
       });
@@ -63,18 +64,15 @@ class ProductsService {
         throw new NotFoundError(`Product with ID ${id} not found`);
       }
 
-      return prisma.product.update({
+      return prisma.product.delete({
         where: { id },
-        data: {
-          isDeleted: true,
-        },
       });
     });
   }
 
   async updateProduct(id: string, data: Partial<Product>) {
     return await this.prisma.$transaction(async (prisma) => {
-      const updateData: Partial<Product> = {};
+      const updateData: Partial<Product> = { ...data };
 
       const product = await prisma.product.findUnique({
         where: { id },
@@ -103,6 +101,7 @@ class ProductsService {
     const cacheKey = `products:page:${page}:${JSON.stringify(
       filter
     )}:${JSON.stringify(sorting)}`;
+
     return redis.getOrSetCache(cacheKey, async () => {
       const where: Prisma.ProductWhereInput = {
         isDeleted: false,
@@ -227,13 +226,14 @@ class ProductsService {
     });
   }
 
-  async getHiden() {
+  async getHidden() {
     return await this.prisma.product.findMany({
       where: {
         isDeleted: true,
       },
     });
   }
+
   async getCategories() {
     return this.prisma.product.findMany({
       where: {

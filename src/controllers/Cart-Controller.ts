@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import cartService from '../Database/Cart-Service.ts';
+import cartService from '../Database/Cart-Service.js';
 
-const createCartWithItem = (req: Request, res: Response) => {
+const addItem = async (req: Request, res: Response) => {
   try {
     const user = req.user;
 
@@ -10,10 +10,10 @@ const createCartWithItem = (req: Request, res: Response) => {
       return;
     }
 
-    const userId = (req.user as { id: string }).id;
+    const userId = (user as { id: string }).id;
 
-    cartService.createCartWithItem(userId, req.body);
-    res.status(201).json({ msg: 'Created successfully' });
+    await cartService.addOrCreateCartItem(userId, req.body);
+    res.status(200).json({ msg: 'Item added successfully' });
   } catch (error) {
     res
       .status(400)
@@ -21,7 +21,7 @@ const createCartWithItem = (req: Request, res: Response) => {
   }
 };
 
-const addItem = (req: Request, res: Response) => {
+const deleteItemFromCart = async (req: Request, res: Response) => {
   try {
     const user = req.user;
 
@@ -32,27 +32,7 @@ const addItem = (req: Request, res: Response) => {
 
     const userId = (req.user as { id: string }).id;
 
-    cartService.addItemToCart(userId, req.body);
-    res.status(200).json({ msg: 'Add successfully' });
-  } catch (error) {
-    res
-      .status(400)
-      .json({ error: error instanceof Error ? error.message : error });
-  }
-};
-
-const deleteItemFromCart = (req: Request, res: Response) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      res.status(401).json({ msg: 'Unauthorized' });
-      return;
-    }
-
-    const userId = (req.user as { id: string }).id;
-
-    cartService.deleteItemFromCart(req.params.productId, userId);
+    await cartService.deleteItemFromCart(req.params.productId, userId);
     res.status(200).json({ msg: 'Delete successfully' });
   } catch (error) {
     res
@@ -61,7 +41,7 @@ const deleteItemFromCart = (req: Request, res: Response) => {
   }
 };
 
-const clearCart = (req: Request, res: Response) => {
+const clearCart = async (req: Request, res: Response) => {
   try {
     const user = req.user;
 
@@ -72,7 +52,7 @@ const clearCart = (req: Request, res: Response) => {
 
     const userId = (req.user as { id: string }).id;
 
-    cartService.clearCart(userId);
+    await cartService.clearCart(userId);
     res.status(200).json({ msg: 'Clear cart successfully' });
   } catch (error) {
     res
@@ -81,7 +61,7 @@ const clearCart = (req: Request, res: Response) => {
   }
 };
 
-const getItems = (req: Request, res: Response) => {
+const getItems = async (req: Request, res: Response) => {
   try {
     const user = req.user;
 
@@ -92,7 +72,7 @@ const getItems = (req: Request, res: Response) => {
 
     const userId = (req.user as { id: string }).id;
 
-    const items = cartService.getItems(userId);
+    const items = await cartService.getItems(userId);
     res.status(200).json({ data: items });
   } catch (error) {
     res
@@ -101,7 +81,7 @@ const getItems = (req: Request, res: Response) => {
   }
 };
 
-const updateCart = (req: Request, res: Response) => {
+const updateCart = async (req: Request, res: Response) => {
   try {
     const user = req.user;
 
@@ -112,7 +92,7 @@ const updateCart = (req: Request, res: Response) => {
 
     const userId = (req.user as { id: string }).id;
 
-    cartService.updateCartItemQuantity(
+    await cartService.updateCartItemQuantity(
       req.body.productId,
       userId,
       req.body.quantity
@@ -126,11 +106,4 @@ const updateCart = (req: Request, res: Response) => {
   }
 };
 
-export {
-  createCartWithItem,
-  addItem,
-  deleteItemFromCart,
-  clearCart,
-  getItems,
-  updateCart,
-};
+export { addItem, deleteItemFromCart, clearCart, getItems, updateCart };

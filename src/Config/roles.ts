@@ -13,7 +13,7 @@ const rolePermissions: RolePermissions = {
   ADMIN: {
     Product: ['view', 'create', 'update', 'delete', 'hide', 'search'],
     Review: ['view', 'delete'],
-    Order: ['view', 'update', 'delete'],
+    Order: ['view', 'update', 'delete', 'create'],
     Cart: ['view'],
     Payment: ['view'],
   },

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import orderService from '../Database/Order-Service.ts';
+import orderService from '../Database/Order-Service.js';
 
-const createOrder = (req: Request, res: Response) => {
+const createOrder = async (req: Request, res: Response) => {
   try {
     const user = req.user;
 
@@ -12,8 +12,12 @@ const createOrder = (req: Request, res: Response) => {
 
     const userId = (req.user as { id: string }).id;
 
-    const order = orderService.createOrder(userId, req.body.shippingAddress);
-    res.status(201).json({ msg: `Created successfully order ${order}` });
+    const order = await orderService.createOrder(
+      userId,
+      req.body.shippingAddress
+    );
+
+    res.status(201).json({ msg: 'Order created successfully', data: order });
   } catch (error) {
     res
       .status(400)
@@ -21,7 +25,7 @@ const createOrder = (req: Request, res: Response) => {
   }
 };
 
-const deleteOrder = (req: Request, res: Response) => {
+const deleteOrder = async (req: Request, res: Response) => {
   try {
     const user = req.user;
 
@@ -32,8 +36,8 @@ const deleteOrder = (req: Request, res: Response) => {
 
     const userId = (req.user as { id: string }).id;
 
-    const order = orderService.deleteOrder(userId, req.params.orderId);
-    res.status(201).json({ msg: `Delete successfully ${order}` });
+    const order = await orderService.deleteOrder(userId, req.params.orderId);
+    res.status(200).json({ msg: 'Order deleted successfully', data: order });
   } catch (error) {
     res
       .status(400)
@@ -41,9 +45,9 @@ const deleteOrder = (req: Request, res: Response) => {
   }
 };
 
-const getALlOrder = (req: Request, res: Response) => {
+const getALlOrder = async (req: Request, res: Response) => {
   try {
-    const orders = orderService.getALlOrder();
+    const orders = await orderService.getALlOrder();
     res.status(201).json({ data: orders });
   } catch (error) {
     res
@@ -52,7 +56,7 @@ const getALlOrder = (req: Request, res: Response) => {
   }
 };
 
-const GetOrderUser = (req: Request, res: Response) => {
+const GetOrderUser = async (req: Request, res: Response) => {
   try {
     const user = req.user;
 
@@ -63,7 +67,7 @@ const GetOrderUser = (req: Request, res: Response) => {
 
     const userId = (req.user as { id: string }).id;
 
-    const order = orderService.GetOrderUser(userId);
+    const order = await orderService.GetOrderUser(userId);
     res.status(201).json({ data: order });
   } catch (error) {
     res
@@ -72,9 +76,9 @@ const GetOrderUser = (req: Request, res: Response) => {
   }
 };
 
-const getOrder = (req: Request, res: Response) => {
+const getOrder = async (req: Request, res: Response) => {
   try {
-    const order = orderService.getOrder(req.params.orderId);
+    const order = await orderService.getOrder(req.params.orderId);
     res.status(201).json({ data: order });
   } catch (error) {
     res
@@ -83,9 +87,9 @@ const getOrder = (req: Request, res: Response) => {
   }
 };
 
-const updateOrderStatus = (req: Request, res: Response) => {
+const updateOrderStatus = async (req: Request, res: Response) => {
   try {
-    const order = orderService.updateOrderStatus(
+    const order = await orderService.updateOrderStatus(
       req.params.orderId,
       req.body.status
     );

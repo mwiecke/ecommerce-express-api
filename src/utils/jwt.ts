@@ -1,10 +1,10 @@
 import { Response } from 'express';
 import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
-import { User, RefreshToken } from '../Schemas/index.ts';
-import userService from '../Database/User-Service.ts';
-import { AppError, UnauthorizedError } from '../Errors/Custom-errors.ts';
-import { logger } from './logger.ts';
+import { User, RefreshToken } from '../Schemas/index.js';
+import userService from '../Database/User-Service.js';
+import { AppError, UnauthorizedError } from '../Errors/Custom-errors.js';
+import { logger } from './logger.js';
 
 export const generateCSRFToken = () => {
   return crypto.randomBytes(32).toString('hex');
@@ -59,7 +59,7 @@ export const attachCookiesToResponse = async (res: Response, user: User) => {
 
   const token: RefreshToken = {
     token: refreshToken,
-    userId: user.id,
+    userId: String(user.id),
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   };
 

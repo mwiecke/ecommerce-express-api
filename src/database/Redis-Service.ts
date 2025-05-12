@@ -1,5 +1,5 @@
-import { NotFoundError } from '../Errors/Custom-errors.ts';
-import redisClient from '../Utils/Get-Redis-Client.ts';
+import { NotFoundError } from '../Errors/Custom-errors.js';
+import redisClient from '../Utils/Get-Redis-Client.js';
 
 const DEFAULT_EXPIRE_TIME = 60 * 60 * 24 * 7; // 1 week in seconds
 

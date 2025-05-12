@@ -1,5 +1,5 @@
 import * as Express from 'express';
-import { User } from '../../Schemas/index.ts';
+import { User } from '@prisma/client';
 
 declare global {
   namespace Express {

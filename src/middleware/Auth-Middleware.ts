@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import userService from '../Database/User-Service.ts';
-import { User } from '../Schemas/index.ts';
-import redisClient from '../Utils/Get-Redis-Client.ts';
-import { UnauthorizedError } from '../Errors/Custom-errors.ts';
+import userService from '../Database/User-Service.js';
+import { User } from '../Schemas/index.js';
+import redisClient from '../Utils/Get-Redis-Client.js';
+import { UnauthorizedError } from '../Errors/Custom-errors.js';
 
-const USER_CACHE_TTL = 1800; // 30 minutes
+const USER_CACHE_TTL = 1800;
 
 const authMiddleware = async (
   req: Request,
@@ -31,10 +31,17 @@ const authMiddleware = async (
     if (cachedUser) {
       user = JSON.parse(cachedUser);
     } else {
-      user = await userService.findUserById(decoded.id);
-      if (!user) {
+      const foundUser = await userService.findUserById(decoded.id);
+      if (!foundUser) {
         throw new UnauthorizedError('Authentication required');
       }
+
+      user = {
+        ...foundUser,
+        role: foundUser.role as import('../Schemas/index.js').Role,
+        secondEmail:
+          foundUser.secondEmail === null ? undefined : foundUser.secondEmail,
+      };
 
       await redisClient.setEx(cacheKey, USER_CACHE_TTL, JSON.stringify(user));
     }

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { rolePermissions, Role, Resource, Action } from '../Config/roles.ts';
-import { User } from '../Schemas/index.ts';
-import { ForbiddenError, UnauthorizedError } from '../Errors/Custom-errors.ts';
+import { rolePermissions, Role, Resource, Action } from '../Config/roles.js';
+import { User } from '../Schemas/index.js';
+import { ForbiddenError, UnauthorizedError } from '../Errors/Custom-errors.js';
 
 export const checkPermission = (resource: Resource, action: Action) => {
   return (req: Request, res: Response, next: NextFunction): void => {

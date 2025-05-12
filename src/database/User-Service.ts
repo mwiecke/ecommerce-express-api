@@ -1,20 +1,27 @@
-import { PrismaClient, Role, User } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
+
+export enum Role {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+}
+
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { logger } from '../Utils/logger.ts';
+import { logger } from '../Utils/logger.js';
 
 import {
   Login,
   loginSchema,
   RefreshToken,
   inputuser,
-} from '../Schemas/index.ts';
+  User,
+} from '../Schemas/index.js';
 
 import {
   AppError,
   NotFoundError,
   UnauthorizedError,
-} from '../Errors/Custom-errors.ts';
+} from '../Errors/Custom-errors.js';
 
 const prisma = new PrismaClient();
 
@@ -172,7 +179,7 @@ class UserService {
   }
 
   async refreshToken(token: RefreshToken) {
-    return this.prisma.refreshToken.upsert({
+    return await this.prisma.refreshToken.upsert({
       where: { userId: token.userId },
       update: {
         token: token.token,
@@ -187,7 +194,7 @@ class UserService {
   }
 
   async findRefreshToken(token: string): Promise<RefreshToken | null> {
-    return this.prisma.refreshToken.findUnique({
+    return await this.prisma.refreshToken.findUnique({
       where: { token },
     });
   }
@@ -195,6 +202,13 @@ class UserService {
   async deleteRefreshToken(userId: string) {
     await this.prisma.refreshToken.delete({
       where: { userId: userId },
+    });
+  }
+
+  async addEmail(userId: string, email: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { secondEmail: email },
     });
   }
 }

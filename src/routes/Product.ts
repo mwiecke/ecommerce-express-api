@@ -1,70 +1,86 @@
 import express from 'express';
 const productRouter = express.Router();
 
-import { authMiddleware } from '../Middleware/Auth-Middleware.ts';
-import { checkPermission } from '../Middleware/Check-Review-Permission.ts';
+import { authMiddleware } from '../Middleware/Auth-Middleware.js';
+import { checkPermission } from '../Middleware/Check-Permission.js';
+import { validateCSRF } from '../Middleware/CSRF.validation.js';
 
 import {
   addNewProducts,
   deleteProduct,
-  UpdateProduct,
-  GetPage,
+  updateProduct,
+  getPage,
   searchInProducts,
   hideProduct,
   restoreProduct,
-  getHiden,
+  getHidden,
   getCategories,
   getTags,
-} from '../Controllers/Product-Controller.ts';
+} from '../Controllers/Product-Controller.js';
 
-productRouter.get('/:page', GetPage);
+productRouter.get('/page/:page', getPage);
 productRouter.post('/search', searchInProducts);
 
 productRouter.post(
   '/',
   authMiddleware,
+  validateCSRF,
   checkPermission('Product', 'create'),
   addNewProducts
 );
 
-productRouter.put(
+productRouter.patch(
   '/:id',
   authMiddleware,
+  validateCSRF,
   checkPermission('Product', 'update'),
-  UpdateProduct
+  updateProduct
 );
 
 productRouter.delete(
   '/:id',
   authMiddleware,
+  validateCSRF,
   checkPermission('Product', 'delete'),
   deleteProduct
 );
 
 productRouter.patch(
-  '/:id',
+  '/hide/:id',
   authMiddleware,
+  validateCSRF,
   checkPermission('Product', 'hide'),
   hideProduct
 );
 
 productRouter.patch(
-  '/restoreProduct',
+  '/restore/:id',
+  authMiddleware,
+  validateCSRF,
   checkPermission('Product', 'update'),
   restoreProduct
 );
 
 productRouter.get(
-  '/getHiden',
+  '/hidden',
   authMiddleware,
+  validateCSRF,
   checkPermission('Product', 'hide'),
-  getHiden
+  getHidden
 );
 
-productRouter.get('/getTags', checkPermission('Product', 'view'), getTags);
+productRouter.get(
+  '/tags',
+  authMiddleware,
+  validateCSRF,
+  checkPermission('Product', 'view'),
+  getTags
+);
 
 productRouter.get(
-  '/getCategories',
+  '/categories',
+  authMiddleware,
+  validateCSRF,
   checkPermission('Product', 'view'),
   getCategories
 );

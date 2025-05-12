@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../Utils/logger.ts';
+import { logger } from '../Utils/logger.js';
 
 interface ExtendedError extends Error {
   statusCode?: number;

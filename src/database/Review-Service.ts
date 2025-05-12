@@ -1,14 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 import { ZodError } from 'zod';
 
-import { reviewsSchema, reviews } from '../Schemas/index.ts';
-import { logger } from '../Utils/logger.ts';
+import { reviewsSchema, reviews } from '../Schemas/index.js';
+import { logger } from '../Utils/logger.js';
 import {
   AppError,
   ConflictError,
   NotFoundError,
   ValidationError,
-} from '../Errors/Custom-errors.ts';
+} from '../Errors/Custom-errors.js';
 
 const prisma = new PrismaClient();
 
@@ -53,8 +53,8 @@ class ReviewsService {
       const existingReview = await this.prisma.review.findUnique({
         where: {
           userId_productId: {
-            userId: validData.userId,
-            productId: validData.productId,
+            userId: validData.userId!,
+            productId: validData.productId!,
           },
         },
       });
@@ -66,9 +66,13 @@ class ReviewsService {
       }
 
       const rev = await this.prisma.review.create({
-        data: validData,
+        data: {
+          ...validData,
+          userId: validData.userId!,
+          productId: validData.productId!,
+        },
       });
-      await this.calculateRating(validData.productId);
+      await this.calculateRating(validData.productId!);
 
       logger.info(
         `Review added for product ${validData.productId} by user ${validData.userId}`
@@ -82,7 +86,6 @@ class ReviewsService {
       logger.error(`Error adding review: ${error}`);
 
       if (error instanceof ZodError) {
-        // Assuming you're using Zod for validation
         throw new ValidationError('Invalid review data');
       }
 
@@ -90,23 +93,29 @@ class ReviewsService {
     }
   }
 
-  async updateReview(data: reviews) {
+  async updateReview(
+    data: Partial<reviews> & { userId: string; productId: string }
+  ) {
     try {
-      const validData = reviewsSchema.parse(data);
-      const { userId, productId, ...updateFields } = validData;
+      const updateSchema = reviewsSchema.partial({
+        rating: true,
+        comment: true,
+      });
+
+      const validUpdateFields = updateSchema.parse(data);
+      const { userId, productId, ...updateFields } = validUpdateFields;
 
       const rev = await this.prisma.review.update({
         where: {
           userId_productId: {
-            userId,
-            productId,
+            userId: userId!,
+            productId: productId!,
           },
         },
         data: updateFields,
       });
 
-      this.calculateRating(productId);
-
+      await this.calculateRating(productId!);
       return rev;
     } catch (error) {
       throw new ValidationError('Invalid review data');
@@ -115,13 +124,11 @@ class ReviewsService {
 
   async deleteReviews(data: Record<string, string> = {}) {
     try {
-      const validData = reviewsSchema.parse(data);
-
       return await this.prisma.review.delete({
         where: {
           userId_productId: {
-            userId: validData.userId,
-            productId: validData.productId,
+            userId: data.userId!,
+            productId: data.productId!,
           },
         },
       });

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import redisClient from '../Utils/Get-Redis-Client.ts';
-import { AppError, RateLimitError } from '../Errors/Custom-errors.ts';
-import { logger } from '../Utils/logger.ts';
+import redisClient from '../Utils/Get-Redis-Client.js';
+import { AppError, RateLimitError } from '../Errors/Custom-errors.js';
+import { logger } from '../Utils/logger.js';
 
 const REQUEST_LIMIT = 20;
 const TIME_WINDOW = 25200; // 7 hours in seconds

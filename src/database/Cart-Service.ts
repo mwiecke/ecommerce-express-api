@@ -1,12 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-import { Cart, cartSchema } from '../Schemas/index.ts';
+import { Cart, cartSchema } from '../Schemas/index.js';
 
-import {
-  NotFoundError,
-  ValidationError,
-  ConflictError,
-  ForbiddenError,
-} from '../Errors/Custom-errors.ts';
+import { NotFoundError, ConflictError } from '../Errors/Custom-errors.js';
 
 const prisma = new PrismaClient();
 
@@ -39,58 +34,33 @@ class CartService {
     }
   }
 
-  async createCartWithItem(userId: string, cartItemData: Cart) {
-    try {
-      const validItemData = cartSchema.parse(cartItemData);
-
-      await this.checkQuantity(validItemData.quantity, validItemData.productId);
-
-      return await this.prisma.$transaction(async (tx) => {
-        const cart = await tx.cart.create({
-          data: {
-            userId: userId,
-          },
-        });
-
-        const item = await tx.cartItem.create({
-          data: {
-            ...validItemData,
-            cartId: cart.id,
-          },
-        });
-
-        return {
-          cart,
-          item,
-        };
-      });
-    } catch (error) {
-      throw new Error(
-        `Failed to create cart: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
-  }
-
-  async addItemToCart(userId: string, itemData: Cart) {
+  async addOrCreateCartItem(userId: string, itemData: Cart) {
     const validItemData = cartSchema.parse(itemData);
 
+    await this.checkQuantity(validItemData.quantity, validItemData.productId);
+
     return await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-        include: { cart: true },
+      let cart = await tx.cart.findUnique({
+        where: { userId },
       });
-      if (!user?.cart) throw new NotFoundError('User or cart not found');
 
-      await this.checkQuantity(validItemData.quantity, validItemData.productId);
+      if (!cart) {
+        cart = await tx.cart.create({
+          data: { userId },
+        });
+      }
 
-      return tx.cartItem.create({
+      const item = await tx.cartItem.create({
         data: {
           ...validItemData,
-          cartId: user.cart.id,
+          cartId: cart.id,
         },
       });
+
+      return {
+        cart,
+        item,
+      };
     });
   }
 
@@ -160,6 +130,7 @@ class CartService {
       const { count } = await tx.cartItem.deleteMany({
         where: { cartId: user.cart.id },
       });
+
       return { message: `Deleted ${count} items` };
     });
   }

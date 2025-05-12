@@ -13,7 +13,8 @@ model User {
   firstName    String        @map("first_name")
   lastName     String        @map("last_name")
   email        String        @unique
-  password     String? // Nullable for Google login
+  secondEmail  String?       @map("second-email")
+  password     String?
   googleId     String?       @unique @map("google_id")
   role         Role          @default(USER)
   isVerified   Boolean       @default(false)

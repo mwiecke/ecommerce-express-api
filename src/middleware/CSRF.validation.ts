@@ -1,6 +1,6 @@
 import { Response, Request, NextFunction } from 'express';
 import { timingSafeEqual } from 'crypto';
-import { ForbiddenError } from '../Errors/Custom-errors.ts';
+import { ForbiddenError } from '../Errors/Custom-errors.js';
 
 export const validateCSRF = (
   req: Request,

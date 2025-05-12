@@ -1,9 +1,7 @@
 import express from 'express';
 const orderRouter = express.Router();
 
-import { authMiddleware } from '../Middleware/Auth-Middleware.ts';
-import { checkPermission } from '../Middleware/Check-Review-Permission.ts';
-
+import { checkPermission } from '../Middleware/Check-Permission.js';
 import {
   createOrder,
   deleteOrder,
@@ -11,13 +9,12 @@ import {
   GetOrderUser,
   getOrder,
   updateOrderStatus,
-} from '../Controllers/Order-Controller.ts';
+} from '../Controllers/Order-Controller.js';
 
-// User routes
 orderRouter.post('/', checkPermission('Order', 'create'), createOrder);
 
+orderRouter.get('/', checkPermission('Order', 'view'), getALlOrder);
 orderRouter.get('/user', checkPermission('Order', 'view'), GetOrderUser);
-
 orderRouter.get('/:orderId', checkPermission('Order', 'view'), getOrder);
 
 orderRouter.delete(
@@ -25,8 +22,6 @@ orderRouter.delete(
   checkPermission('Order', 'delete'),
   deleteOrder
 );
-
-orderRouter.get('/', checkPermission('Order', 'view'), getALlOrder);
 
 orderRouter.patch(
   '/:orderId/status',

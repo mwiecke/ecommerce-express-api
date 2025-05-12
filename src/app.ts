@@ -7,16 +7,16 @@ import cors from 'cors';
 
 dotenv.config();
 
-import rateLimiting from './Middleware/limiter.ts';
-import { authRouter } from './Routes/Auth.ts';
-import { productRouter } from './Routes/Product.ts';
-import { reviewRouter } from './Routes/Reviews.ts';
-import { cartRouter } from './Routes/Cart.ts';
-import { orderRouter } from './Routes/Order.ts';
-import { paymentRouter } from './Routes/payment.ts';
-import { authMiddleware } from './Middleware/Auth-Middleware.ts';
-import { validateCSRF } from './Middleware/CSRF.validation.ts';
-import errorHandler from './Middleware/Error-handler.ts';
+import rateLimiting from './Middleware/limiter.js';
+import { authRouter } from './Routes/Auth.js';
+import { productRouter } from './Routes/Product.js';
+import { reviewRouter } from './Routes/Reviews.js';
+import { cartRouter } from './Routes/Cart.js';
+import { orderRouter } from './Routes/Order.js';
+import { paymentRouter } from './Routes/payment.js';
+import { authMiddleware } from './Middleware/Auth-Middleware.js';
+import { validateCSRF } from './Middleware/CSRF.validation.js';
+import errorHandler from './Middleware/Error-handler.js';
 
 const app = express();
 
@@ -34,7 +34,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", 'trusted-cdn.com'],
-        imgSrc: ["'self'", 'https://images.mycdn.com'],
+        imgSrc: ["'self'", 'https://images.mycdn.com', 'https://example.com'],
       },
     },
     frameguard: { action: 'deny' },
@@ -45,12 +45,10 @@ app.use(xssClean());
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
-//app.use(validateCSRF);
 app.use(rateLimiting);
-app.use(errorHandler);
 
-app.use('/cart', authMiddleware, cartRouter);
-app.use('/order', authMiddleware, orderRouter);
+app.use('/cart', authMiddleware, validateCSRF, cartRouter);
+app.use('/orders', authMiddleware, validateCSRF, orderRouter);
 
 app.use('/auth', authRouter);
 app.use('/product', productRouter);
@@ -65,6 +63,6 @@ app.use((req, res) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });
 });
 
-export default app;
+app.use(errorHandler);
 
-// run in (wsl Terminal) code  sudo systemctl start redis
+export default app;

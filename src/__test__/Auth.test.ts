@@ -1,7 +1,7 @@
-import app from '../app.ts';
+import app from '../app.js';
 import request from 'supertest';
 import * as cookie from 'cookie';
-import redisClient from '../Utils/Get-Redis-Client.ts';
+import redisClient from '../Utils/Get-Redis-Client.js';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 describe('Authentication Routes Tests', () => {
   let testUser = {
     username: 'username',
-    email: 'salahqaraeen733@gmail.com',
+    email: 'testEmail@gmail.com',
     password: 'password@1234H',
     firstName: 'user',
     lastName: 'test',
@@ -96,7 +96,7 @@ describe('Authentication Routes Tests', () => {
 
     it('should login successfully with valid credentials', async () => {
       const res = await request(app).post('/auth/login').send({
-        email: 'salahqaraeen733@gmail.com',
+        email: testUser.email,
         password: 'password@1234H',
       });
 
@@ -117,7 +117,7 @@ describe('Authentication Routes Tests', () => {
 
     it('should refresh access tokens', async () => {
       const loginRes = await request(app).post('/auth/login').send({
-        email: 'salahqaraeen733@gmail.com',
+        email: testUser.email,
         password: 'password@1234H',
       });
 
@@ -151,6 +151,130 @@ describe('Authentication Routes Tests', () => {
         c.includes('refreshToken=')
       );
       expect(newRefreshTokenCookie).toBeDefined();
+    });
+
+    it('should add second email successfully', async () => {
+      const user = await prisma.user.findUnique({
+        where: { email: testUser.email },
+      });
+
+      const loginRes = await request(app).post('/auth/login').send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+
+      expect(loginRes.status).toBe(200);
+
+      const loginCookies = Array.isArray(loginRes.headers['set-cookie'])
+        ? loginRes.headers['set-cookie']
+        : [loginRes.headers['set-cookie'] || ''];
+
+      const csrfToken = loginRes.body.csrfToken;
+      expect(csrfToken).toBeDefined();
+
+      const newEmail = 'secondaryEmail@gmail.com';
+
+      const addEmailRes = await request(app)
+        .post('/auth/2fa/addEmail')
+        .send({ secondEmail: newEmail })
+        .set('Cookie', loginCookies)
+        .set('x-csrf-token', csrfToken);
+
+      expect(addEmailRes.status).toBe(200);
+
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: user!.id },
+      });
+      expect(updatedUser?.secondEmail).toBe(newEmail);
+    });
+
+    it('should request 2FA code', async () => {
+      const user = await prisma.user.findUnique({
+        where: { email: testUser.email },
+      });
+
+      await prisma.user.update({
+        where: { id: user!.id },
+        data: { secondEmail: 'secondaryEmail@gmail.com' },
+      });
+
+      const loginRes = await request(app).post('/auth/login').send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+
+      expect(loginRes.status).toBe(200);
+
+      const loginCookies = Array.isArray(loginRes.headers['set-cookie'])
+        ? loginRes.headers['set-cookie']
+        : [loginRes.headers['set-cookie'] || ''];
+
+      const csrfToken = loginRes.body.csrfToken;
+      expect(csrfToken).toBeDefined();
+
+      const Reqest2fa = await request(app)
+        .post('/auth/2fa/email/request')
+        .set('Cookie', loginCookies)
+        .set('x-csrf-token', csrfToken);
+
+      expect(Reqest2fa.status).toBe(200);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      if (!user) {
+        return;
+      }
+
+      const code = redisClient.get(user.id);
+      expect(code).toBeDefined();
+    });
+
+    it('should verify email for 2fa', async () => {
+      const user = await prisma.user.findUnique({
+        where: { email: testUser.email },
+      });
+      expect(user).not.toBeNull();
+
+      // Update the user to add a second email
+      await prisma.user.update({
+        where: { id: user!.id },
+        data: { secondEmail: 'secondaryEmail@gmail.com' },
+      });
+
+      const loginRes = await request(app).post('/auth/login').send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+      expect(loginRes.status).toBe(200);
+
+      const loginCookies = Array.isArray(loginRes.headers['set-cookie'])
+        ? loginRes.headers['set-cookie']
+        : [loginRes.headers['set-cookie'] || ''];
+
+      const csrfToken = loginRes.body.csrfToken;
+      expect(csrfToken).toBeDefined();
+
+      const request2fa = await request(app)
+        .post('/auth/2fa/email/request')
+        .set('Cookie', loginCookies)
+        .set('x-csrf-token', csrfToken);
+      expect(request2fa.status).toBe(200);
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      if (!user) {
+        return;
+      }
+
+      const code = await redisClient.get(user.id);
+      expect(code).toBeDefined();
+
+      // Then verify the 2FA code
+      const verify2FA = await request(app)
+        .post('/auth/2fa/email/verify')
+        .send({ code: code })
+        .set('Cookie', loginCookies)
+        .set('x-csrf-token', csrfToken);
+      expect(verify2FA.status).toBe(200);
     });
   });
 
@@ -258,26 +382,16 @@ describe('Authentication Routes Tests', () => {
         }
       }
 
-      console.log('All login cookies:', loginCookies);
-      console.log('CSRF Token from body:', csrfToken);
-      console.log('XSRF Cookie value:', xsrfCookieValue);
-
       const logoutRes = await request(app)
         .post('/auth/logout')
         .set('Cookie', loginCookies)
         .set('x-csrf-token', csrfToken);
-
-      console.log('Logout response status:', logoutRes.status);
-      console.log('Logout response body:', logoutRes.body);
-      console.log('Logout response headers:', logoutRes.headers);
 
       expect(logoutRes.status).toBe(200);
 
       const logoutCookies = Array.isArray(logoutRes.headers['set-cookie'])
         ? logoutRes.headers['set-cookie']
         : [logoutRes.headers['set-cookie'] || ''];
-
-      console.log('Logout cookies:', logoutCookies);
 
       expect(logoutCookies.some((c) => c.includes('jwt=logout'))).toBe(true);
       expect(logoutCookies.some((c) => c.includes('refreshToken=logout'))).toBe(
@@ -322,5 +436,12 @@ describe('Authentication Routes Tests', () => {
 
       expect(logoutRes.status).toBe(403);
     });
+  });
+
+  it('should reject registration with invalid email', async () => {
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ ...testUser, email: 'invalid-email' });
+    expect(res.status).toBe(400);
   });
 });

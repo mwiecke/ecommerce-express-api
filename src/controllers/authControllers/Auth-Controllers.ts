@@ -1,15 +1,16 @@
 import { Request, Response } from 'express';
 import * as jwt from 'jsonwebtoken';
-import userService from '../../Database/User-Service.ts';
-import { sendMail } from '../../Utils/Send-Email.ts';
-import { User } from '../../Schemas/index.ts';
-import { blacklistToken, isBlacklisted } from '../../Utils/Black-List.ts';
+import userService from '../../Database/User-Service.js';
+import { sendMail } from '../../Utils/Send-Email.js';
+import { User } from '../../Schemas/index.js';
+import { blacklistToken, isBlacklisted } from '../../Utils/Black-List.js';
 import {
   attachCookiesToResponse,
   forgot,
   verifyJWT,
   generateCSRFToken,
-} from '../../Utils/jwt.ts';
+} from '../../Utils/jwt.js';
+import redisClient from '../../Utils/Get-Redis-Client.js';
 
 const register = async (req: Request, res: Response) => {
   try {
@@ -24,7 +25,12 @@ const register = async (req: Request, res: Response) => {
       secure: process.env.NODE_ENV === 'production',
     });
 
-    attachCookiesToResponse(res, user);
+    const sanitizedUser = {
+      ...user,
+      secondEmail: user.secondEmail ?? undefined,
+      role: user.role as import('../../Schemas/index.ts').Role,
+    };
+    attachCookiesToResponse(res, sanitizedUser);
 
     const verificationLink = `http://localhost:5000/auth/verify-email?token=${jwtToken}`;
     await sendMail(
@@ -53,26 +59,21 @@ const verifyEmail = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // First try to treat it as a JWT token
     try {
       const decoded = verifyJWT(token) as { code: string; email: string };
       if (decoded?.code) {
-        // JWT verification successful
         await userService.verifyEmail(decoded.code);
         res.clearCookie('verifyEmail');
         res.status(200).json({ message: 'Email verified successfully' });
         return;
       }
     } catch (error) {
-      // JWT verification failed, treat the token as a raw verification token
       try {
-        // Try to verify using the raw token
         await userService.verifyEmail(token);
         res.clearCookie('verifyEmail');
         res.status(200).json({ message: 'Email verified successfully' });
         return;
       } catch (verifyError) {
-        // Both methods failed
         const errorMessage =
           verifyError instanceof Error ? verifyError.message : 'Unknown error';
         res.status(400).json({
@@ -101,7 +102,21 @@ const login = async (req: Request, res: Response) => {
 
     const user = await userService.login(req.body);
 
-    const csrfToken = await attachCookiesToResponse(res, user);
+    const sanitizedUser = {
+      ...user,
+      secondEmail: user.secondEmail ?? undefined,
+      role: user.role as import('../../Schemas/index.js').Role,
+    };
+    const csrfToken = await attachCookiesToResponse(res, sanitizedUser);
+
+    if (user.secondEmail) {
+      res.status(200).json({
+        username: user.username,
+        csrfToken,
+        requiresSecondFactor: true,
+      });
+      return;
+    }
 
     res.status(200).json({ username: user.username, csrfToken });
   } catch (error) {
@@ -253,7 +268,6 @@ const resetPassword = async (req: Request, res: Response): Promise<void> => {
     await userService.updateUserInfo({ password: newPassword }, email);
     await userService.clearResetToken(email);
 
-    // Clear the password reset cookie
     res.cookie('passwordReset', 'logout', { httpOnly: true, maxAge: 1 });
 
     res.status(200).json({ message: 'Password successfully reset' });
@@ -359,6 +373,93 @@ const refresh = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+const addsecondEmail = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user as User;
+
+    if (!user) {
+      res.status(401).json({ msg: 'Unauthorized' });
+      return;
+    }
+
+    await userService.addEmail(user.id, req.body.secondEmail);
+    res.status(200).json({ msg: 'Email added successfully' });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ msg: error instanceof Error ? error.message : 'Server Error' });
+  }
+};
+
+const Reqest2fa = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user as User;
+
+    if (!user?.secondEmail) {
+      res.status(400).json({ msg: 'Second email is not set' });
+      return;
+    }
+
+    const userId = (req.user as { id: string }).id;
+
+    const code = crypto.randomUUID();
+    const sixDigitCode = code.slice(0, 6);
+
+    await redisClient.set(userId, sixDigitCode, { EX: 600 });
+
+    await sendMail(
+      user.secondEmail,
+      'Two-Factor Authentication Code',
+      `
+        <h2>Two-Factor Authentication</h2>
+        <p>You requested to verify your identity.</p>
+        <p>Please return to the app and enter this code:</p>
+        <h3>${sixDigitCode}</h3>
+        <p>This code will expire in 10 minutes.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      `
+    );
+
+    res.status(200).json({ message: 'Verification code sent to email.' });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ msg: error instanceof Error ? error.message : 'Server Error' });
+  }
+};
+
+const verify2FA = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user as User;
+    const reqCode = req.body.code;
+
+    if (!user?.secondEmail) {
+      res.status(400).json({ msg: 'Second email is not set' });
+      return;
+    }
+
+    const storedCode = await redisClient.get(user.id);
+
+    if (!storedCode) {
+      res
+        .status(400)
+        .json({ msg: 'No verification code found or code expired' });
+      return;
+    }
+
+    if (storedCode === reqCode) {
+      await redisClient.del(user.id);
+      res.status(200).json({ msg: '2FA verification successful' });
+    } else {
+      res.status(401).json({ msg: 'Invalid or expired 2FA code' });
+    }
+  } catch (error) {
+    res.status(500).json({
+      msg: error instanceof Error ? error.message : 'Server Error',
+    });
+  }
+};
+
 export {
   register,
   verifyEmail,
@@ -368,4 +469,7 @@ export {
   resetPassword,
   forgotPassword,
   refresh,
+  addsecondEmail,
+  Reqest2fa,
+  verify2FA,
 };
