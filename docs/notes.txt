@@ -1,9 +1,0 @@
-
-Code Quality
-    Add API documentation with Swagger/OpenAPI
-
-DevOps
-    Dockerize the application
-    Add CI/CD pipeline configuration
-
-    "dev": "node --loader ts-node/esm --no-warnings=ExperimentalWarning src/index.ts",

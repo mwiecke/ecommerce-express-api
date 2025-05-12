@@ -1,6 +1,0 @@
-{"level":"info","message":"Server running on port 3000","service":"api-service","timestamp":"2025-05-12 16:24:26"}
-{"level":"info","message":"Redis connected successfully","service":"api-service","timestamp":"2025-05-12 16:24:26"}
-{"level":"info","message":"Server running on port 3000","service":"api-service","timestamp":"2025-05-12 18:03:02"}
-{"level":"info","message":"Redis connected successfully","service":"api-service","timestamp":"2025-05-12 18:03:02"}
-{"level":"info","message":"Server running on port 3000","service":"api-service","timestamp":"2025-05-12 19:24:59"}
-{"level":"info","message":"Redis connected successfully","service":"api-service","timestamp":"2025-05-12 19:24:59"}
