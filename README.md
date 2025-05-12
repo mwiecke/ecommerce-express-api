@@ -140,7 +140,7 @@ The application implements a service layer pattern to separate business logic:
 - Docker (optional)
 
 1. Clone the repository:
-   git clone https://github.com/yourusername/ecommerce-api.git
+   git clone https://github.com/salahqr/ecommerce-web-backend.git
    cd ecommerce-api
 
 2. Install dependencies:
