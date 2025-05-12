@@ -2,6 +2,7 @@
 
 ## Table of Contents
 - [Overview](#Overview)
+- [Database Schema](#Database-Schema)
 - [API Endpoints](#Api-endpoints)
 - [Getting Started](#Getting-started)
 - [Deployment](#Docker-setup)
@@ -38,6 +39,11 @@ This is a comprehensive backend API for an e-commerce platform built with Expres
 - **OAuth Authentication**: Google OAuth integration
 - **Two-Factor Authentication (2FA)**: Email-based 2FA with multiple email support
 - **Session Management**: Secure token refresh and logout functionality
+
+
+## Database Schema
+![ER Diagram](./docs/prisma-erd.svg)
+
 
 ## API Endpoints
 
