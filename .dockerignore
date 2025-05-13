@@ -2,6 +2,7 @@ node_modules
 npm-debug.log
 docs
 .env
+.env.example
 .git
 .gitignore
 dist
