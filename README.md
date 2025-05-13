@@ -136,6 +136,29 @@ The application implements a service layer pattern to separate business logic:
 - **Error-handler**: Central error handling
 - **limiter**: Rate limiting implementation
 
+```mermaid
+sequenceDiagram
+    actor User
+    participant API as E-Commerce API
+
+    Note right of User: Authentication Flow
+    User->>API: POST /auth/register
+    activate API
+    API-->>User: 201 Created
+    deactivate API
+
+    User->>API: POST /auth/login
+    activate API
+    API-->>User: 200 OK (JWT)
+    deactivate API
+
+    Note right of User: Protected Resources
+    User->>API: GET /product/page/1
+    activate API
+    API-->>User: 200 OK (Product Data)
+    deactivate API
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -179,29 +202,6 @@ The application implements a service layer pattern to separate business logic:
 
 ## Docker Setup
     docker-compose up --build
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant API as E-Commerce API
-
-    Note right of User: Authentication Flow
-    User->>API: POST /auth/register
-    activate API
-    API-->>User: 201 Created
-    deactivate API
-
-    User->>API: POST /auth/login
-    activate API
-    API-->>User: 200 OK (JWT)
-    deactivate API
-
-    Note right of User: Protected Resources
-    User->>API: GET /product/page/1
-    activate API
-    API-->>User: 200 OK (Product Data)
-    deactivate API
-```
 
 ## Running Tests
 Run unit tests using Jest:
