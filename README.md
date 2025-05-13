@@ -44,6 +44,7 @@ This is a comprehensive backend API for an e-commerce platform built with Expres
 ## Database Schema
 ![ER Diagram](./docs/prisma-erd.svg)
 
+The schema defines relationships between users, products, carts, orders, and reviews, following best practices for e-commerce data modeling.
 
 ## API Endpoints
 
@@ -136,29 +137,6 @@ The application implements a service layer pattern to separate business logic:
 - **Error-handler**: Central error handling
 - **limiter**: Rate limiting implementation
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant API as E-Commerce API
-
-    Note right of User: Authentication Flow
-    User->>API: POST /auth/register
-    activate API
-    API-->>User: 201 Created
-    deactivate API
-
-    User->>API: POST /auth/login
-    activate API
-    API-->>User: 200 OK (JWT)
-    deactivate API
-
-    Note right of User: Protected Resources
-    User->>API: GET /product/page/1
-    activate API
-    API-->>User: 200 OK (Product Data)
-    deactivate API
-```
-
 ## Getting Started
 
 ### Prerequisites
@@ -175,23 +153,7 @@ sequenceDiagram
 2. Install dependencies:
     npm install
 
-3. Set up environment variables (create `.env` file):
-    PORT
-    NODE_ENV
-    clientID
-    clientSecret
-    Access_TOKEN_SECRET
-    REFRESH_TOKEN_SECRET
-    FORGOT_TOKEN_SECRET
-    MyEmail
-    MyEmailPassword,
-    STRIPE_SEECRET_KEY
-    STRIPE_Publishable_KEY    
-    STRIPE_WEBHOOK_SECRET
-    LOCAL_DATABASE_URL
-    DB_PASSWORD
-    DB_NAME
-    REDIS_URL
+3. Set up environment variables:Copy the example environment file and modify as needed:
 
 4. Database setup:
     npx prisma migrate dev
