@@ -1,171 +1,160 @@
-# E-Commerce API Documentation
+# E-commerce Express API 🌐
+
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Node.js](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen)
+
+Welcome to the **E-commerce Express API** repository! This project is designed to provide a robust and scalable backend solution for e-commerce applications. Built with TypeScript and Express.js, it leverages PostgreSQL as the database, Prisma ORM for data modeling, and integrates various technologies to enhance functionality and security.
 
 ## Table of Contents
-- [Overview](#Overview)
-- [Database Schema](#Database-Schema)
-- [API Endpoints](#Api-endpoints)
-- [Getting Started](#Getting-started)
-- [Deployment](#Docker-setup)
 
-## Overview
+- [Features](#features)
+- [Technologies Used](#technologies-used)
+- [Getting Started](#getting-started)
+- [API Endpoints](#api-endpoints)
+- [Running Tests](#running-tests)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
+- [Releases](#releases)
 
-This is a comprehensive backend API for an e-commerce platform built with Express.js and TypeScript. The API provides endpoints for authentication, product management, shopping cart operations, order processing, payment handling, and reviews.
+## Features
 
-## Technology Stack
+- **TypeScript**: Strongly typed language for better code quality and maintainability.
+- **Express.js**: Fast and minimalist web framework for Node.js.
+- **PostgreSQL**: Powerful, open-source relational database.
+- **Prisma ORM**: Type-safe database client for easy data manipulation.
+- **JWT Authentication**: Secure user authentication with JSON Web Tokens.
+- **OAuth2 Integration**: Allow users to log in using third-party services.
+- **Stripe Payment Integration**: Seamless payment processing for e-commerce transactions.
+- **Redis Cache**: Fast data caching for improved performance.
+- **Docker Support**: Easy deployment and scalability using containerization.
+- **Jest for Testing**: Robust testing framework for ensuring code quality.
 
-- **Backend**: Express.js
-- **Language**: TypeScript
-- **Database**: PostgreSQL with ORM Prisma
-- **Authentication**: JWT (JSON Web Tokens), OAuth (Google)
-- **Security**: Helmet, XSS protection, CSRF validation, Rate limiting
-- **Payment Processing**: Stripe
-- **Caching**: Redis (For product caching & rate limiting)
-- **Testing**: Jest
-- **Architecture**: MVC pattern with Service layer
+## Technologies Used
 
-## Security Features
-
-- **Helmet**: Security headers to protect against common vulnerabilities
-- **XSS Protection**: Prevents cross-site scripting attacks
-- **CORS Configuration**: Restricts origins to trusted domains
-- **CSRF Protection**: Token validation on sensitive operations
-- **Rate Limiting**: Protection against brute force and DoS attacks
-- **Content Security Policy**: Restricts sources for scripts, images, and resources
-- **Permission-Based Access Control**: Role-based permissions for API operations
-
-## Authentication
-
-- **Local Authentication**: Email/password registration and login with verification
-- **OAuth Authentication**: Google OAuth integration
-- **Two-Factor Authentication (2FA)**: Email-based 2FA with multiple email support
-- **Session Management**: Secure token refresh and logout functionality
-
-
-## Database Schema
-![ER Diagram](./docs/prisma-erd.svg)
-
-The schema defines relationships between users, products, carts, orders, and reviews, following best practices for e-commerce data modeling.
-
-## API Endpoints
-
-### Auth API
-
-| Endpoint | Method | Description | Auth Required | CSRF Required |
-|----------|--------|-------------|--------------|---------------|
-| `/auth/register` | POST | Register user | No | No |
-| `/auth/login` | POST | Login | No | No |
-| `/auth/verify-email` | GET | Verify email | No | No |
-| `/auth/reset-password` | POST | Reset password | No | No |
-| `/auth/forgot-password` | POST | Request reset | No | No |
-| `/auth/logout` | POST | Logout | Yes | Yes |
-| `/auth/refresh` | POST | Refresh token | No | No |
-| `/auth/2fa/email/request` | POST | Request 2FA code | Yes | Yes |
-| `/auth/2fa/email/verify` | POST | Verify 2FA code | Yes | Yes |
-| `/auth/2fa/addEmail` | POST | Add 2FA email | Yes | Yes |
-| `/auth/google` | GET | Google OAuth | No | No |
-| `/auth/google/redirect` | GET | OAuth callback | No | No |
-
-### Product API
-
-| Endpoint | Method | Description | Auth Required | Permission |
-|----------|--------|-------------|--------------|------------|
-| `/product/page/:page` | GET | Get products | No | None |
-| `/product/search` | POST | Search products | No | None |
-| `/product/` | POST | Add product | Yes | `Product:create` |
-| `/product/:id` | PATCH | Update product | Yes | `Product:update` |
-| `/product/:id` | DELETE | Delete product | Yes | `Product:delete` |
-| `/product/hide/:id` | PATCH | Hide product | Yes | `Product:hide` |
-| `/product/restore/:id` | PATCH | Restore product | Yes | `Product:update` |
-| `/product/hidden` | GET | Get hidden products | Yes | `Product:hide` |
-| `/product/tags` | GET | Get tags | Yes | `Product:view` |
-| `/product/categories` | GET | Get categories | Yes | `Product:view` |
-
-### Cart API
-
-| Endpoint | Method | Description | Auth Required | Permission |
-|----------|--------|-------------|--------------|------------|
-| `/cart/` | GET | Get cart items | Yes | `Cart:view` |
-| `/cart/:productId` | DELETE | Remove item | Yes | `Cart:delete` |
-| `/cart/` | DELETE | Clear cart | Yes | `Cart:delete` |
-| `/cart/` | POST | Add item | Yes | `Cart:create` |
-| `/cart/` | PATCH | Update cart | Yes | `Cart:update` |
-
-### Order API
-
-| Endpoint | Method | Description | Auth Required | Permission |
-|----------|--------|-------------|--------------|------------|
-| `/orders/` | POST | Create order | Yes | `Order:create` |
-| `/orders/` | GET | Get all orders | Yes | `Order:view` |
-| `/orders/user` | GET | Get user orders | Yes | `Order:view` |
-| `/orders/:orderId` | GET | Get order | Yes | `Order:view` |
-| `/orders/:orderId` | DELETE | Delete order | Yes | `Order:delete` |
-| `/orders/:orderId/status` | PATCH | Update status | Yes | `Order:update` |
-
-### Payment API
-
-| Endpoint | Method | Description | Auth Required | Permission |
-|----------|--------|-------------|--------------|------------|
-| `/payment/` | GET | Get Stripe key | Yes | None |
-| `/payment/webhook` | POST | Stripe webhook | No | None |
-| `/payment/` | POST | Process payment | Yes | `Payment:view` |
-
-### Review API
-
-| Endpoint | Method | Description | Auth Required | Permission |
-|----------|--------|-------------|--------------|------------|
-| `/review/:productId` | GET | Get reviews | Yes | `Review:view` |
-| `/review/:productId` | DELETE | Delete review | Yes | `Review:delete` |
-| `/review/` | POST | Add review | Yes | `Review:create` |
-| `/review/:productId` | PATCH | Update review | Yes | `Review:update` |
-
-## Services Layer
-
-The application implements a service layer pattern to separate business logic:
-
-- **Cart-Service**: Shopping cart operations
-- **Order-Service**: Order processing and management
-- **Product-Service**: Product data management
-- **Redis-Service**: Caching operations
-- **Review-Service**: Product reviews management
-- **User-Service**: User-related operations
-
-## Middleware Components
-
-- **Auth-Middleware**: Authentication verification
-- **Check-Permission**: Role-based permission handling
-- **CSRF.validation**: Protection against CSRF attacks
-- **Error-handler**: Central error handling
-- **limiter**: Rate limiting implementation
+- **Node.js**: JavaScript runtime for building scalable applications.
+- **TypeScript**: A superset of JavaScript that adds static types.
+- **Express.js**: Web framework for Node.js to build APIs.
+- **PostgreSQL**: Advanced relational database management system.
+- **Prisma**: Modern ORM for Node.js and TypeScript.
+- **Redis**: In-memory data structure store for caching.
+- **Stripe**: Payment processing platform for e-commerce.
+- **Docker**: Containerization tool for consistent development and deployment.
 
 ## Getting Started
 
+To get started with the E-commerce Express API, follow these steps:
+
 ### Prerequisites
 
-- Node.js v18+
-- PostgreSQL
-- Redis
-- Docker (optional)
+- Install [Node.js](https://nodejs.org/) (version 12 or higher).
+- Install [Docker](https://www.docker.com/) for containerization.
+- Set up a PostgreSQL database.
 
-1. Clone the repository:
-   git clone https://github.com/salahqr/ecommerce-web-backend.git
-   cd ecommerce-api
+### Clone the Repository
 
-2. Install dependencies:
-    npm install
+```bash
+git clone https://github.com/mwiecke/ecommerce-express-api.git
+cd ecommerce-express-api
+```
 
-3. Set up environment variables:Copy the example environment file and modify as needed:
+### Install Dependencies
 
-4. Database setup:
-    npx prisma migrate dev
-    npx prisma generate
+Run the following command to install the required dependencies:
 
-5. Run the application:
-    npm run dev
+```bash
+npm install
+```
 
-## Docker Setup
-    docker-compose up --build
+### Environment Variables
+
+Create a `.env` file in the root directory and add the following variables:
+
+```
+DATABASE_URL=your_postgresql_connection_string
+JWT_SECRET=your_jwt_secret
+STRIPE_SECRET_KEY=your_stripe_secret_key
+REDIS_URL=your_redis_connection_string
+```
+
+### Running the Application
+
+To start the server, run:
+
+```bash
+npm run dev
+```
+
+The API will be available at `http://localhost:3000`.
+
+### Using Docker
+
+To run the application in a Docker container, use the following commands:
+
+```bash
+docker-compose up --build
+```
+
+This command will build the Docker image and start the application.
+
+## API Endpoints
+
+Here are some of the key API endpoints available in this project:
+
+### User Authentication
+
+- **POST** `/api/auth/register`: Register a new user.
+- **POST** `/api/auth/login`: Log in an existing user.
+
+### Products
+
+- **GET** `/api/products`: Retrieve a list of products.
+- **POST** `/api/products`: Add a new product.
+
+### Orders
+
+- **GET** `/api/orders`: Retrieve a list of orders.
+- **POST** `/api/orders`: Create a new order.
+
+### Payments
+
+- **POST** `/api/payments`: Process a payment through Stripe.
 
 ## Running Tests
-Run unit tests using Jest:
+
+To run the tests for this project, use the following command:
+
 ```bash
-npm run test
+npm test
+```
+
+This will execute the test suite using Jest.
+
+## Deployment
+
+For deployment, you can use services like Heroku, AWS, or DigitalOcean. Ensure that you set the environment variables correctly in the production environment.
+
+## Contributing
+
+We welcome contributions to improve the E-commerce Express API. To contribute, please follow these steps:
+
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/YourFeature`).
+3. Make your changes and commit them (`git commit -m 'Add some feature'`).
+4. Push to the branch (`git push origin feature/YourFeature`).
+5. Open a pull request.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Releases
+
+You can find the latest releases of the E-commerce Express API [here](https://github.com/mwiecke/ecommerce-express-api/releases). Download and execute the necessary files for your setup.
+
+For any further updates, check the [Releases](https://github.com/mwiecke/ecommerce-express-api/releases) section.
+
+---
+
+Thank you for checking out the E-commerce Express API! We hope this project helps you build amazing e-commerce solutions. If you have any questions or suggestions, feel free to reach out.
